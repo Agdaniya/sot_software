@@ -307,7 +307,7 @@ class AdminTemplate(QWidget):
         )
         self.substep_count_lbl = QLabel("")
         self.substep_count_lbl.setStyleSheet(
-            f"QLabel {{ font-size: 12px; color: {T.TEXT_SEC}; background: transparent; }}"
+            f"QLabel {{ font-size: 11px; color: {T.TEXT_HINT}; background: transparent; }}"
         )
         sel_v.addWidget(sel_card_label)
         sel_v.addWidget(self.drawing_display)

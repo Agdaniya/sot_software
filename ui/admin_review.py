@@ -71,73 +71,53 @@ class ProjectHeaderWidget(QWidget):
 # ── Custom widget: drawing row card ──────────────────────────────────────────
 class DrawingRowWidget(QWidget):
     def __init__(self, d_name, status, payment, parent=None):
+        import utils.theme as T
         super().__init__(parent)
         self.setAttribute(Qt.WA_TranslucentBackground)
 
         submitted = (status == "submitted")
+        fg, bg    = T.STATUS_COLORS.get(status, (T.TEXT_SEC, T.BG))
 
         if submitted:
-            icon     = "⚡"
-            status_txt = "Needs Review"
-            status_bg  = "#fef3c7"
-            status_fg  = "#92400e"
-            left_col   = "#f59e0b"
+            sub_text   = "Needs Review"
+            chip_label = "Review"
         else:
-            icon     = "✓"
-            pay_suffix = "  · 💰 Paid" if payment else "  · 💸 Unpaid"
-            status_txt = f"Client Approved{pay_suffix}"
-            status_bg  = "#dcfce7"
-            status_fg  = "#166534"
-            left_col   = "#22c55e"
+            pay_str    = "· Paid" if payment else "· Unpaid"
+            sub_text   = f"Client Approved  {pay_str}"
+            chip_label = "Approved"
 
         outer = QHBoxLayout(self)
-        outer.setContentsMargins(28, 8, 14, 8)   # extra left indent to show nesting
-        outer.setSpacing(10)
+        outer.setContentsMargins(28, 10, 16, 10)
+        outer.setSpacing(12)
 
-        # Icon circle
-        icon_lbl = QLabel(icon)
-        icon_lbl.setFixedSize(28, 28)
-        icon_lbl.setAlignment(Qt.AlignCenter)
-        icon_lbl.setStyleSheet(
-            f"background:{left_col}22; color:{left_col}; border-radius:14px;"
-            f"font-size:13px; font-weight:700;"
-        )
-        outer.addWidget(icon_lbl)
-
-        # Name + status
+        # Name + sub-status
         text_col = QVBoxLayout()
-        text_col.setSpacing(1)
+        text_col.setSpacing(2)
 
         name_lbl = QLabel(d_name)
         name_lbl.setStyleSheet(
-            "font-size:12px; font-weight:600; color:#1e293b; background:transparent;"
+            f"font-size:13px; font-weight:600; color:{T.TEXT}; background:transparent;"
         )
         text_col.addWidget(name_lbl)
 
-        status_lbl = QLabel(status_txt)
+        status_lbl = QLabel(sub_text)
         status_lbl.setStyleSheet(
-            f"font-size:10px; color:{status_fg}; background:transparent;"
+            f"font-size:11px; color:{fg}; background:transparent;"
         )
         text_col.addWidget(status_lbl)
         outer.addLayout(text_col, 1)
 
-        # Status chip
-        chip = QLabel(f"  {'Review' if submitted else 'Approved'}  ")
-        chip.setStyleSheet(
-            f"background:{status_bg}; color:{status_fg}; font-size:10px;"
-            f"font-weight:600; border-radius:8px; padding:3px 0px;"
-        )
-        chip.setFixedWidth(68)
+        # Status chip pill
+        chip = QLabel(f"  {chip_label}  ")
         chip.setAlignment(Qt.AlignCenter)
+        chip.setStyleSheet(
+            f"background:{bg}; color:{fg}; font-size:10px; font-weight:600; "
+            f"border-radius:8px; padding:3px 0px;"
+        )
+        chip.setFixedWidth(72)
         outer.addWidget(chip)
 
-        self.setStyleSheet("""
-            QWidget {
-                background: white;
-                border-radius: 8px;
-                border-left: 3px solid #f1f5f9;
-            }
-        """)
+        self.setStyleSheet(f"QWidget {{ background: {T.SURFACE}; border-radius: 0px; }}")
 
 
 # ── Main view ─────────────────────────────────────────────────────────────────

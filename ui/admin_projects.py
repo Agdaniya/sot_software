@@ -246,10 +246,11 @@ class AdminProjects(QWidget):
 
             cb_style = (
                 f"QCheckBox {{ font-size: 13px; color: {T.TEXT}; "
-                f"background: transparent; spacing: 8px; }}"
-                f"QCheckBox::indicator {{ width: 16px; height: 16px; "
-                f"border: 1px solid {T.BORDER_SOLID}; border-radius: 4px; background: {T.SURFACE}; }}"
-                f"QCheckBox::indicator:checked {{ background: {T.ACCENT}; border-color: {T.ACCENT}; }}"
+                f"background: transparent; spacing: 10px; }}"
+                f"QCheckBox::indicator {{ width: 17px; height: 17px; "
+                f"border: 1.5px solid {T.BORDER_SOLID}; border-radius: 4px; background: {T.SURFACE}; }}"
+                f"QCheckBox::indicator:checked {{ background: {T.TEAL}; border-color: {T.TEAL}; }}"
+                f"QCheckBox::indicator:unchecked:hover {{ border-color: {T.ACCENT}; }}"
             )
             for uid, user in users_data.items():
                 if user.get("role") in ["employee", "admin"]:

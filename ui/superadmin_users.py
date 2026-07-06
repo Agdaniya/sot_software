@@ -3,7 +3,7 @@ from PySide6.QtWidgets import (
     QLabel, QLineEdit, QPushButton, QListWidget, QFrame, QComboBox,
     QListWidgetItem, QDialog, QScrollArea
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
 from services.firebase_client import FirebaseClient
 from core.users import UserManager
 from core.auth import User
@@ -252,18 +252,67 @@ class SuperAdminUsers(QWidget):
             raise
 
     # ── Data ──────────────────────────────────────────────────────────────────
+    def _make_user_row(self, uid, user):
+        """Build a custom widget row for a user: avatar + name/email + role badge."""
+        role         = user.get("role", "employee")
+        username     = user.get("username", "Unknown")
+        email        = user.get("email", "")
+        fg, bg       = T.ROLE_COLORS.get(role, (T.TEXT_SEC, T.BG))
+        role_display = role.replace("_", " ").title()
+        initials     = "".join(w[0].upper() for w in username.split()[:2])
+
+        row = QWidget()
+        row.setStyleSheet(f"QWidget {{ background: transparent; }}")
+        h = QHBoxLayout(row)
+        h.setContentsMargins(16, 10, 16, 10)
+        h.setSpacing(12)
+
+        # Avatar circle
+        avatar = QLabel(initials)
+        avatar.setFixedSize(36, 36)
+        avatar.setAlignment(Qt.AlignCenter)
+        avatar.setStyleSheet(
+            f"QLabel {{ background: {T.ACCENT_BG}; color: {T.ACCENT}; "
+            f"border-radius: 18px; font-size: 12px; font-weight: 700; }}"
+        )
+        h.addWidget(avatar)
+
+        # Name + email
+        text_col = QVBoxLayout()
+        text_col.setSpacing(1)
+        name_lbl = QLabel(username)
+        name_lbl.setStyleSheet(
+            f"QLabel {{ font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
+        )
+        email_lbl = QLabel(email)
+        email_lbl.setStyleSheet(
+            f"QLabel {{ font-size: 11px; color: {T.TEXT_SEC}; background: transparent; }}"
+        )
+        text_col.addWidget(name_lbl)
+        text_col.addWidget(email_lbl)
+        h.addLayout(text_col, 1)
+
+        # Role badge pill
+        badge = QLabel(role_display)
+        badge.setStyleSheet(
+            f"QLabel {{ background: {bg}; color: {fg}; border-radius: 4px; "
+            f"padding: 3px 8px; font-size: 10px; font-weight: 700; }}"
+        )
+        h.addWidget(badge)
+        return row
+
     def load_users(self):
         self.users_list.clear()
         try:
             users_data = self.fb.root.child("users").get() or {}
             for uid, user in users_data.items():
-                role         = user.get("role", "employee")
-                role_display = role.replace("_", " ").title()
-                item_text    = f"{user.get('username', 'Unknown')}  [{role_display}]\n{user.get('email', '')}"
-                item = QListWidgetItem(item_text)
+                item = QListWidgetItem()
                 item.setData(Qt.UserRole, uid)
-                item.setData(Qt.UserRole + 1, role)
+                item.setData(Qt.UserRole + 1, user.get("role", "employee"))
+                item.setSizeHint(QSize(0, 58))
                 self.users_list.addItem(item)
+                row_widget = self._make_user_row(uid, user)
+                self.users_list.setItemWidget(item, row_widget)
             self.user_count_lbl.setText(str(len(users_data)))
             logger.info(f"Loaded {len(users_data)} users")
         except Exception as e:
@@ -272,9 +321,14 @@ class SuperAdminUsers(QWidget):
 
     def filter_users(self, text):
         lo = text.lower()
+        users_data = self.fb.root.child("users").get() or {}
+        uid_list   = list(users_data.keys())
         for i in range(self.users_list.count()):
             item = self.users_list.item(i)
-            item.setHidden(lo not in item.text().lower())
+            uid  = item.data(Qt.UserRole)
+            user = users_data.get(uid, {})
+            haystack = f"{user.get('username','')} {user.get('email','')}".lower()
+            item.setHidden(lo not in haystack)
 
     def on_user_selected(self, item):
         user_id   = item.data(Qt.UserRole)

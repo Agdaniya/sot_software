@@ -259,13 +259,14 @@ class NavCard(QFrame):
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(8)
 
-        # Abbr bubble
+        # Abbr bubble — light tinted background
         bubble = QLabel(abbr)
         bubble.setFixedSize(36, 36)
         bubble.setAlignment(Qt.AlignCenter)
         bubble.setStyleSheet(
-            f"QLabel {{ background: {accent_color}1A; color: {accent_color}; "
-            f"border-radius: 8px; font-size: 13px; font-weight: 700; }}"
+            f"QLabel {{ background: {T.BG}; color: {accent_color}; "
+            f"border: 1px solid {T.BORDER_SOLID}; "
+            f"border-radius: 8px; font-size: 11px; font-weight: 700; }}"
         )
 
         title_lbl = QLabel(title)
