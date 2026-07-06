@@ -1,403 +1,137 @@
 from PySide6.QtWidgets import (
-    QWidget, QLabel, QVBoxLayout, QHBoxLayout,
-    QPushButton, QFrame, QGridLayout, QMessageBox,
-    QStackedWidget, QScrollArea, QDialog, QDateEdit, QDialogButtonBox, QCheckBox
+    QWidget, QLabel, QVBoxLayout, QHBoxLayout, QPushButton,
+    QFrame, QGridLayout, QScrollArea, QDialog, QDateEdit,
+    QCheckBox, QSizePolicy
 )
 from PySide6.QtCore import Qt, Signal, QDate
-from PySide6.QtGui import QIcon
-
 from services.firebase_client import FirebaseClient
-
 from ui.admin_projects import AdminProjects
 from ui.admin_review import AdminReview
 from ui.admin_template import AdminTemplate
 from ui.superadmin_users import SuperAdminUsers
+import utils.theme as T
+from datetime import datetime
 
 
-# Modern Date range dialog for employee reports
+# ── Date Range Dialog ─────────────────────────────────────────────────────────
 class DateRangeDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Select Date Range")
+        self.setWindowTitle("Generate Report")
         self.setModal(True)
-        self.setMinimumWidth(480)
-        
-        # Modern styling
-        self.setStyleSheet("""
-            QDialog {
-                background: white;
-            }
-            QLabel {
-                color: #1e293b;
-            }
-        """)
-        
+        self.setMinimumWidth(460)
+        self.setStyleSheet(f"QDialog {{ background: {T.SURFACE}; }} QLabel {{ background: transparent; }}")
+
         layout = QVBoxLayout(self)
-        layout.setSpacing(20)
+        layout.setSpacing(16)
         layout.setContentsMargins(32, 32, 32, 32)
-        
-        # Title with icon
-        title_layout = QHBoxLayout()
-        icon = QLabel("📊")
-        icon.setStyleSheet("QLabel { font-size: 24px; }")
-        
-        title = QLabel("Generate Employee Performance Report")
-        title.setStyleSheet("""
-            QLabel {
-                font-size: 18px;
-                font-weight: 600;
-                color: #1e293b;
-            }
-        """)
-        
-        title_layout.addWidget(icon)
-        title_layout.addWidget(title)
-        title_layout.addStretch()
-        layout.addLayout(title_layout)
-        
-        # Description
-        desc = QLabel("Select a date range for the report, or use all available data.")
-        desc.setWordWrap(True)
-        desc.setStyleSheet("""
-            QLabel {
-                font-size: 14px;
-                color: #64748b;
-                line-height: 1.5;
-            }
-        """)
+
+        title = QLabel("Employee Performance Report")
+        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {T.TEXT};")
+        desc = QLabel("Choose a date range or use all available data.")
+        desc.setStyleSheet(f"font-size: 13px; color: {T.TEXT_SEC};")
+
+        layout.addWidget(title)
         layout.addWidget(desc)
-        
-        # Divider
-        divider = QFrame()
-        divider.setFrameShape(QFrame.HLine)
-        divider.setStyleSheet("QFrame { background: #e2e8f0; max-height: 1px; }")
-        layout.addWidget(divider)
-        
-        # All time checkbox (moved to top for better UX)
-        self.all_time_checkbox = QCheckBox("📅 Use all time data (ignore date range)")
-        self.all_time_checkbox.setStyleSheet("""
-            QCheckBox {
-                font-size: 14px;
-                font-weight: 500;
-                color: #1e293b;
-                spacing: 8px;
-            }
-            QCheckBox::indicator {
-                width: 20px;
-                height: 20px;
-                border-radius: 4px;
-                border: 2px solid #cbd5e1;
-            }
-            QCheckBox::indicator:checked {
-                background: #1e40af;
-                border: 2px solid #1e40af;
-                image: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iOSIgdmlld0JveD0iMCAwIDEyIDkiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxwYXRoIGQ9Ik0xMSAxTDQuNSA4TDEgNC41IiBzdHJva2U9IndoaXRlIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgo8L3N2Zz4K);
-            }
+
+        div = QFrame(); div.setFrameShape(QFrame.HLine)
+        div.setStyleSheet(f"background: {T.BORDER}; max-height: 1px;")
+        layout.addWidget(div)
+
+        self.all_time_checkbox = QCheckBox("Use all available data (ignore date range)")
+        self.all_time_checkbox.setStyleSheet(f"""
+            QCheckBox {{ font-size: 13px; color: {T.TEXT}; spacing: 8px; }}
+            QCheckBox::indicator {{ width: 18px; height: 18px; border: 1.5px solid {T.BORDER_MED}; border-radius: 4px; background: {T.SURFACE}; }}
+            QCheckBox::indicator:checked {{ background: {T.ACCENT}; border-color: {T.ACCENT}; }}
         """)
         self.all_time_checkbox.toggled.connect(self.toggle_date_inputs)
         layout.addWidget(self.all_time_checkbox)
-        
-        # Date range container
+
         self.date_container = QFrame()
         date_layout = QVBoxLayout(self.date_container)
-        date_layout.setSpacing(16)
+        date_layout.setSpacing(12)
         date_layout.setContentsMargins(0, 0, 0, 0)
-        
-        # Start date
-        start_frame = QFrame()
-        start_frame.setStyleSheet("""
-            QFrame {
-                background: #f8fafc;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                padding: 16px;
-            }
-        """)
-        start_layout = QVBoxLayout(start_frame)
-        start_layout.setSpacing(8)
-        start_layout.setContentsMargins(0, 0, 0, 0)
-        
-        start_label = QLabel("📅 Start Date")
-        start_label.setStyleSheet("""
-            QLabel { 
-                font-size: 13px; 
-                font-weight: 600; 
-                color: #475569;
-            }
-        """)
-        start_layout.addWidget(start_label)
-        
-        self.start_date = QDateEdit()
-        self.start_date.setCalendarPopup(True)
+
+        for label_text, attr in [("Start Date", "start_date"), ("End Date", "end_date")]:
+            lbl = QLabel(label_text)
+            lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {T.TEXT_SEC};")
+            date_edit = QDateEdit()
+            date_edit.setCalendarPopup(True)
+            date_edit.setDisplayFormat("MMMM dd, yyyy")
+            date_edit.setStyleSheet(f"""
+                QDateEdit {{
+                    padding: 9px 12px; border: 1.5px solid {T.BORDER};
+                    border-radius: {T.RADIUS_SM}; font-size: 13px;
+                    background: {T.SURFACE}; color: {T.TEXT};
+                }}
+                QDateEdit:focus {{ border-color: {T.ACCENT}; }}
+                QDateEdit::drop-down {{ border: none; width: 28px; }}
+                QDateEdit::down-arrow {{
+                    border-left: 4px solid transparent; border-right: 4px solid transparent;
+                    border-top: 5px solid {T.TEXT_SEC}; margin-right: 8px;
+                }}
+            """)
+            setattr(self, attr, date_edit)
+            date_layout.addWidget(lbl)
+            date_layout.addWidget(date_edit)
+
         self.start_date.setDate(QDate.currentDate().addMonths(-1))
-        self.start_date.setDisplayFormat("MMMM dd, yyyy")
-        self.start_date.setStyleSheet("""
-            QDateEdit {
-                padding: 12px 16px;
-                border: none;
-                border-radius: 6px;
-                font-size: 14px;
-                background: white;
-                color: #1e293b;
-            }
-            QDateEdit:focus {
-                background: #f1f5f9;
-            }
-            QDateEdit::drop-down {
-                border: none;
-                width: 30px;
-            }
-            QDateEdit::down-arrow {
-                image: none;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 6px solid #64748b;
-                margin-right: 8px;
-            }
-            QCalendarWidget {
-                background: white;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-            }
-            QCalendarWidget QToolButton {
-                color: #1e293b;
-                background: transparent;
-                padding: 4px;
-            }
-            QCalendarWidget QMenu {
-                background: white;
-                border: 1px solid #e2e8f0;
-            }
-            QCalendarWidget QSpinBox {
-                background: white;
-                border: 1px solid #e2e8f0;
-                padding: 4px;
-            }
-            QCalendarWidget QTableView {
-                selection-background-color: #1e40af;
-                selection-color: white;
-            }
-        """)
-        start_layout.addWidget(self.start_date)
-        date_layout.addWidget(start_frame)
-        
-        # End date
-        end_frame = QFrame()
-        end_frame.setStyleSheet("""
-            QFrame {
-                background: #f8fafc;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                padding: 16px;
-            }
-        """)
-        end_layout = QVBoxLayout(end_frame)
-        end_layout.setSpacing(8)
-        end_layout.setContentsMargins(0, 0, 0, 0)
-        
-        end_label = QLabel("📅 End Date")
-        end_label.setStyleSheet("""
-            QLabel { 
-                font-size: 13px; 
-                font-weight: 600; 
-                color: #475569;
-            }
-        """)
-        end_layout.addWidget(end_label)
-        
-        self.end_date = QDateEdit()
-        self.end_date.setCalendarPopup(True)
         self.end_date.setDate(QDate.currentDate())
-        self.end_date.setDisplayFormat("MMMM dd, yyyy")
-        self.end_date.setStyleSheet("""
-            QDateEdit {
-                padding: 12px 16px;
-                border: none;
-                border-radius: 6px;
-                font-size: 14px;
-                background: white;
-                color: #1e293b;
-            }
-            QDateEdit:focus {
-                background: #f1f5f9;
-            }
-            QDateEdit::drop-down {
-                border: none;
-                width: 30px;
-            }
-            QDateEdit::down-arrow {
-                image: none;
-                border-left: 5px solid transparent;
-                border-right: 5px solid transparent;
-                border-top: 6px solid #64748b;
-                margin-right: 8px;
-            }
-            QCalendarWidget {
-                background: white;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-            }
-            QCalendarWidget QToolButton {
-                color: #1e293b;
-                background: transparent;
-                padding: 4px;
-            }
-            QCalendarWidget QMenu {
-                background: white;
-                border: 1px solid #e2e8f0;
-            }
-            QCalendarWidget QSpinBox {
-                background: white;
-                border: 1px solid #e2e8f0;
-                padding: 4px;
-            }
-            QCalendarWidget QTableView {
-                selection-background-color: #1e40af;
-                selection-color: white;
-            }
-        """)
-        end_layout.addWidget(self.end_date)
-        date_layout.addWidget(end_frame)
-        
         layout.addWidget(self.date_container)
-        
-        # Quick select buttons
-        quick_layout = QHBoxLayout()
-        quick_layout.setSpacing(8)
-        
-        quick_label = QLabel("Quick select:")
-        quick_label.setStyleSheet("""
-            QLabel {
-                font-size: 12px;
-                color: #64748b;
-                font-weight: 500;
-            }
-        """)
-        quick_layout.addWidget(quick_label)
-        
-        last_7_btn = QPushButton("Last 7 days")
-        last_7_btn.setCursor(Qt.PointingHandCursor)
-        last_7_btn.setStyleSheet("""
-            QPushButton {
-                background: #f1f5f9;
-                border: none;
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-size: 12px;
-                color: #475569;
-            }
-            QPushButton:hover {
-                background: #e2e8f0;
-            }
-        """)
-        last_7_btn.clicked.connect(lambda: self.set_quick_range(7))
-        
-        last_30_btn = QPushButton("Last 30 days")
-        last_30_btn.setCursor(Qt.PointingHandCursor)
-        last_30_btn.setStyleSheet("""
-            QPushButton {
-                background: #f1f5f9;
-                border: none;
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-size: 12px;
-                color: #475569;
-            }
-            QPushButton:hover {
-                background: #e2e8f0;
-            }
-        """)
-        last_30_btn.clicked.connect(lambda: self.set_quick_range(30))
-        
-        this_month_btn = QPushButton("This month")
-        this_month_btn.setCursor(Qt.PointingHandCursor)
-        this_month_btn.setStyleSheet("""
-            QPushButton {
-                background: #f1f5f9;
-                border: none;
-                border-radius: 6px;
-                padding: 6px 12px;
-                font-size: 12px;
-                color: #475569;
-            }
-            QPushButton:hover {
-                background: #e2e8f0;
-            }
-        """)
-        this_month_btn.clicked.connect(self.set_this_month)
-        
-        quick_layout.addWidget(last_7_btn)
-        quick_layout.addWidget(last_30_btn)
-        quick_layout.addWidget(this_month_btn)
-        quick_layout.addStretch()
-        
-        layout.addLayout(quick_layout)
-        
+
+        # Quick range buttons
+        quick_row = QHBoxLayout()
+        quick_row.setSpacing(8)
+        ql = QLabel("Quick:")
+        ql.setStyleSheet(f"font-size: 12px; color: {T.TEXT_SEC};")
+        quick_row.addWidget(ql)
+        chip_style = f"""
+            QPushButton {{
+                background: {T.BG}; border: 1px solid {T.BORDER};
+                border-radius: 4px; padding: 4px 10px;
+                font-size: 11px; color: {T.TEXT_SEC}; font-weight: 600;
+            }}
+            QPushButton:hover {{ background: {T.BORDER}; color: {T.TEXT}; }}
+        """
+        for label, days in [("7 days", 7), ("30 days", 30), ("This month", 0)]:
+            btn = QPushButton(label)
+            btn.setStyleSheet(chip_style)
+            btn.setCursor(Qt.PointingHandCursor)
+            if days:
+                btn.clicked.connect(lambda _, d=days: self.set_quick_range(d))
+            else:
+                btn.clicked.connect(self.set_this_month)
+            quick_row.addWidget(btn)
+        quick_row.addStretch()
+        layout.addLayout(quick_row)
+
         # Buttons
-        button_layout = QHBoxLayout()
-        button_layout.setSpacing(12)
-        
-        cancel_btn = QPushButton("Cancel")
-        cancel_btn.setCursor(Qt.PointingHandCursor)
-        cancel_btn.setStyleSheet("""
-            QPushButton {
-                background: #f1f5f9;
-                color: #1e293b;
-                border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 14px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background: #e2e8f0;
-            }
-        """)
-        cancel_btn.clicked.connect(self.reject)
-        
-        generate_btn = QPushButton("Generate Report")
-        generate_btn.setCursor(Qt.PointingHandCursor)
-        generate_btn.setStyleSheet("""
-            QPushButton {
-                background: #1e40af;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 14px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background: #1e3a8a;
-            }
-        """)
-        generate_btn.clicked.connect(self.accept)
-        
-        button_layout.addStretch()
-        button_layout.addWidget(cancel_btn)
-        button_layout.addWidget(generate_btn)
-        
-        layout.addLayout(button_layout)
-    
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
+        cancel = QPushButton("Cancel"); cancel.setStyleSheet(T.btn_secondary()); cancel.setCursor(Qt.PointingHandCursor)
+        cancel.setMinimumHeight(38); cancel.clicked.connect(self.reject)
+        generate = QPushButton("Generate Report"); generate.setStyleSheet(T.btn_primary()); generate.setCursor(Qt.PointingHandCursor)
+        generate.setMinimumHeight(38); generate.clicked.connect(self.accept)
+        btn_row.addStretch()
+        btn_row.addWidget(cancel)
+        btn_row.addWidget(generate)
+        layout.addLayout(btn_row)
+
     def set_quick_range(self, days):
-        """Set date range to last N days"""
         self.all_time_checkbox.setChecked(False)
         self.end_date.setDate(QDate.currentDate())
         self.start_date.setDate(QDate.currentDate().addDays(-days))
-    
+
     def set_this_month(self):
-        """Set date range to current month"""
         self.all_time_checkbox.setChecked(False)
         today = QDate.currentDate()
         self.start_date.setDate(QDate(today.year(), today.month(), 1))
         self.end_date.setDate(today)
-    
+
     def toggle_date_inputs(self, checked):
-        """Toggle date inputs based on checkbox"""
         self.date_container.setEnabled(not checked)
-    
+
     def get_date_range(self):
-        """Get selected date range"""
         if self.all_time_checkbox.isChecked():
             return None, None
         return (
@@ -406,350 +140,251 @@ class DateRangeDialog(QDialog):
         )
 
 
-# FIX: Create smaller, more compact clickable card widget
-class ClickableCard(QFrame):
-    """A compact, fully clickable card widget"""
+# ── Nav Card ──────────────────────────────────────────────────────────────────
+class NavCard(QFrame):
     clicked = Signal()
-    
-    def __init__(self, title, description, parent=None):
+
+    def __init__(self, icon_text, title, description, accent_color, parent=None):
         super().__init__(parent)
+        self.accent_color = accent_color
         self.setCursor(Qt.PointingHandCursor)
-        self.setStyleSheet("""
-            QFrame {
-                background: white;
-                border: none;
-                border-radius: 10px;
-            }
-            QFrame:hover {
-                background: #f8fafc;
-                border: 1px solid #e2e8f0;
-            }
-        """)
-        
-        # Increased height for better spacing and less crowded appearance
-        self.setFixedHeight(160)
+        self._normal_style = f"""
+            QFrame {{
+                background: {T.SURFACE};
+                border: 1px solid {T.BORDER};
+                border-radius: {T.RADIUS};
+            }}
+        """
+        self._hover_style = f"""
+            QFrame {{
+                background: {T.SURFACE};
+                border: 1px solid {T.BORDER_MED};
+                border-radius: {T.RADIUS};
+            }}
+        """
+        self.setStyleSheet(self._normal_style)
+        self.setFixedHeight(140)
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(10)
-        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setContentsMargins(22, 20, 22, 20)
+        layout.setSpacing(8)
 
-        # Title - slightly larger
-        title_label = QLabel(title)
-        title_label.setStyleSheet("""
-            QLabel {
-                font-size: 15px;
-                font-weight: 600;
-                color: #1e293b;
-                background: transparent;
-                border: none;
-            }
+        # Icon bubble
+        icon_bubble = QLabel(icon_text)
+        icon_bubble.setFixedSize(38, 38)
+        icon_bubble.setAlignment(Qt.AlignCenter)
+        icon_bubble.setStyleSheet(f"""
+            QLabel {{
+                background: {accent_color}18;
+                color: {accent_color};
+                border-radius: 9px;
+                font-size: 16px;
+                font-weight: 700;
+            }}
         """)
 
-        # Description - slightly larger
-        desc_label = QLabel(description)
-        desc_label.setWordWrap(True)
-        desc_label.setStyleSheet("""
-            QLabel {
-                font-size: 13px;
-                color: #64748b;
-                background: transparent;
-                border: none;
-                line-height: 1.4;
-            }
-        """)
+        title_lbl = QLabel(title)
+        title_lbl.setStyleSheet(f"QLabel {{ font-size: 14px; font-weight: 700; color: {T.TEXT}; background: transparent; }}")
 
-        # Arrow indicator
-        arrow_label = QLabel("→")
-        arrow_label.setStyleSheet("""
-            QLabel {
-                font-size: 18px;
-                color: #94a3b8;
-                background: transparent;
-                border: none;
-                font-weight: 600;
-            }
-        """)
+        desc_lbl = QLabel(description)
+        desc_lbl.setStyleSheet(f"QLabel {{ font-size: 12px; color: {T.TEXT_SEC}; background: transparent; }}")
+        desc_lbl.setWordWrap(True)
 
-        layout.addWidget(title_label)
-        layout.addWidget(desc_label)
+        layout.addWidget(icon_bubble)
+        layout.addWidget(title_lbl)
+        layout.addWidget(desc_lbl)
         layout.addStretch()
-        layout.addWidget(arrow_label, 0, Qt.AlignRight)
-    
+
     def mousePressEvent(self, event):
-        """Handle mouse press to emit clicked signal"""
         if event.button() == Qt.LeftButton:
             self.clicked.emit()
         super().mousePressEvent(event)
 
+    def enterEvent(self, event):
+        self.setStyleSheet(self._hover_style)
+        super().enterEvent(event)
 
+    def leaveEvent(self, event):
+        self.setStyleSheet(self._normal_style)
+        super().leaveEvent(event)
+
+
+# ── Admin Dashboard ───────────────────────────────────────────────────────────
 class AdminDashboard(QWidget):
     def __init__(self, user, on_logout):
         super().__init__()
-        self.user = user
+        self.user      = user
         self.on_logout = on_logout
 
-        self.setStyleSheet("""
-            QWidget {
-                background: #e8ebf0;
-                font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
-                color: #1e293b;
-            }
-        """)
+        self.setStyleSheet(T.app_base())
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # ================= HEADER =================
-        header = QFrame()
-        header.setFixedHeight(90)
-        header.setStyleSheet("""
-            QFrame {
-                background: #1e40af;
+        # ── Top bar ───────────────────────────────────────────────────────────
+        top_bar = QFrame()
+        top_bar.setFixedHeight(64)
+        top_bar.setStyleSheet(f"""
+            QFrame {{
+                background: {T.SURFACE};
                 border: none;
-            }
+                border-bottom: 1px solid {T.BORDER};
+            }}
         """)
+        tb = QHBoxLayout(top_bar)
+        tb.setContentsMargins(32, 0, 32, 0)
 
-        header_layout = QHBoxLayout(header)
-        header_layout.setContentsMargins(30, 0, 30, 0)
+        brand = QLabel("SOT")
+        brand.setStyleSheet(f"QLabel {{ font-size: 18px; font-weight: 800; color: {T.ACCENT}; background: transparent; }}")
 
-        # Title section
-        title_layout = QVBoxLayout()
-        title_layout.setSpacing(4)
+        sep = QFrame(); sep.setFixedSize(1, 24)
+        sep.setStyleSheet(f"background: {T.BORDER}; border: none;")
 
-        title = QLabel("Admin Dashboard")
-        title.setStyleSheet("""
-            QLabel {
-                color: white;
-                font-size: 28px;
-                font-weight: 700;
-                background: transparent;
-            }
+        greeting = self._greeting()
+        page_title = QLabel(f"{greeting}, {user['username']}")
+        page_title.setStyleSheet(f"QLabel {{ font-size: 14px; color: {T.TEXT_SEC}; background: transparent; }}")
+
+        tb.addWidget(brand)
+        tb.addWidget(sep)
+        tb.addSpacing(12)
+        tb.addWidget(page_title)
+        tb.addStretch()
+
+        # Role pill
+        role = user.get("role", "employee")
+        fg, bg = T.ROLE_COLORS.get(role, (T.TEXT_SEC, T.BG))
+        role_pill = QLabel(role.replace("_", " ").title())
+        role_pill.setStyleSheet(f"""
+            QLabel {{
+                background: {bg}; color: {fg};
+                border-radius: 4px; padding: 3px 10px;
+                font-size: 11px; font-weight: 700;
+            }}
         """)
+        tb.addWidget(role_pill)
+        tb.addSpacing(16)
 
-        # Get greeting based on time
-        greeting = self.get_greeting()
-        subtitle = QLabel(f"{greeting}, {user['username']}! 👋")
-        subtitle.setStyleSheet("""
-            QLabel {
-                color: rgba(255, 255, 255, 0.9);
-                font-size: 15px;
-                background: transparent;
-            }
-        """)
-
-        title_layout.addWidget(title)
-        title_layout.addWidget(subtitle)
-
-        header_layout.addLayout(title_layout)
-        header_layout.addStretch()
-
-        # Logout button
-        logout_btn = QPushButton("Logout")
+        logout_btn = QPushButton("Sign out")
         logout_btn.setCursor(Qt.PointingHandCursor)
-        logout_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent;
-                color: white;
-                border: 2px solid rgba(255, 255, 255, 0.3);
-                border-radius: 8px;
-                padding: 10px 24px;
-                font-weight: 600;
-                font-size: 14px;
-            }
-            QPushButton:hover {
-                background: rgba(255, 255, 255, 0.1);
-                border: 2px solid rgba(255, 255, 255, 0.5);
-            }
+        logout_btn.setFixedHeight(32)
+        logout_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: transparent; color: {T.TEXT_SEC};
+                border: 1px solid {T.BORDER}; border-radius: 5px;
+                font-size: 12px; font-weight: 600; padding: 0 14px;
+            }}
+            QPushButton:hover {{ background: {T.BG}; color: {T.TEXT}; }}
         """)
         logout_btn.clicked.connect(self.handle_logout)
-        header_layout.addWidget(logout_btn)
+        tb.addWidget(logout_btn)
+        main_layout.addWidget(top_bar)
 
-        main_layout.addWidget(header)
-
-        # ================= CONTENT AREA =================
+        # ── Scrollable content ────────────────────────────────────────────────
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet("""
-            QScrollArea {
-                border: none;
-                background: #e8ebf0;
-            }
-        """)
+        scroll.setStyleSheet(f"QScrollArea {{ border: none; background: {T.BG}; }}")
 
-        content_widget = QWidget()
-        content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(30, 30, 30, 30)
-        content_layout.setSpacing(20)
+        content = QWidget()
+        content.setStyleSheet(f"QWidget {{ background: {T.BG}; }}")
+        cl = QVBoxLayout(content)
+        cl.setContentsMargins(40, 36, 40, 40)
+        cl.setSpacing(28)
 
-        # ================= ACTION CARDS (BETTER SPACING) =================
-        cards_layout = QGridLayout()
-        cards_layout.setSpacing(24)  # Increased spacing between cards
-        cards_layout.setHorizontalSpacing(24)
-        cards_layout.setVerticalSpacing(24)
+        # Section heading
+        heading_row = QHBoxLayout()
+        heading = QLabel("Dashboard")
+        heading.setStyleSheet(f"QLabel {{ font-size: 22px; font-weight: 700; color: {T.TEXT}; background: transparent; }}")
+        sub = QLabel("Select a section to get started")
+        sub.setStyleSheet(f"QLabel {{ font-size: 13px; color: {T.TEXT_SEC}; background: transparent; }}")
+        heading_row.addWidget(heading)
+        heading_row.addStretch()
+        cl.addLayout(heading_row)
+        cl.addWidget(sub)
 
-        # Card 1: Manage Projects
-        card1 = ClickableCard(
-            "Manage Projects",
-            "Create and assign projects"
-        )
-        card1.clicked.connect(self.open_projects)
+        # ── Navigation cards ──────────────────────────────────────────────────
+        section_lbl = QLabel("MANAGEMENT")
+        section_lbl.setStyleSheet(f"QLabel {{ font-size: 11px; font-weight: 700; color: {T.TEXT_HINT}; background: transparent; letter-spacing: 1px; }}")
+        cl.addWidget(section_lbl)
 
-        # Card 2: Review Submitted Drawings
-        card2 = ClickableCard(
-            "Review Drawings",
-            "Approve or reject submissions"
-        )
-        card2.clicked.connect(self.open_review)
+        grid = QGridLayout()
+        grid.setSpacing(16)
 
-        # Card 3: Employee Performance Report
-        card3 = ClickableCard(
-            "Employee Report",
-            "Login/logout times & hours"
-        )
-        card3.clicked.connect(self.download_employee_report)
+        cards = [
+            ("P", "Projects",       "Create, assign and manage all projects",       T.ACCENT,   self.open_projects),
+            ("R", "Review Drawings","Approve or reject submitted drawings",          "#7C3AED",  self.open_review),
+            ("E", "Employee Report","Download login/logout & hours report",          T.SUCCESS,  self.download_employee_report),
+            ("S", "Project Report", "Status overview with payment tracking",         "#0891B2",  self.download_project_report),
+        ]
 
-        # Card 4: Project Status Report
-        card4 = ClickableCard(
-            "Project Report",
-            "Status with payment tracking"
-        )
-        card4.clicked.connect(self.download_project_report)
-
-        cards_layout.addWidget(card1, 0, 0)
-        cards_layout.addWidget(card2, 0, 1)
-        cards_layout.addWidget(card3, 0, 2)
-        cards_layout.addWidget(card4, 1, 0)
-
-        # Super admin only cards
         if self.user["role"] == "super_admin":
-            # Card 5: User Management
-            card5 = ClickableCard(
-                "User Management",
-                "Create and manage accounts"
-            )
-            card5.clicked.connect(self.open_users)
+            cards += [
+                ("U", "Users",        "Create and manage user accounts",            "#D97706",  self.open_users),
+                ("T", "Template",     "Edit the default drawing template",          "#DC2626",  self.open_template),
+            ]
 
-            # Card 6: Edit Project Template
-            card6 = ClickableCard(
-                "Project Template",
-                "Modify default structure"
-            )
-            card6.clicked.connect(self.open_template)
+        cols = 3
+        for i, (icon, title, desc, color, fn) in enumerate(cards):
+            card = NavCard(icon, title, desc, color)
+            card.clicked.connect(fn)
+            grid.addWidget(card, i // cols, i % cols)
 
-            cards_layout.addWidget(card5, 1, 1)
-            cards_layout.addWidget(card6, 1, 2)
+        cl.addLayout(grid)
+        cl.addStretch()
 
-        content_layout.addLayout(cards_layout)
-        content_layout.addStretch()
-
-        scroll.setWidget(content_widget)
+        scroll.setWidget(content)
         main_layout.addWidget(scroll)
 
-        # ================= PAGE STACK (HIDDEN) =================
-        self.pages = QStackedWidget()
-        self.pages.hide()
+        # Hidden stack kept for compatibility (pages are loaded lazily in MainWindow)
+        self.pages = None
 
-        self.page_projects = AdminProjects()
-        self.page_review = AdminReview()
-        self.page_template = AdminTemplate()
-        self.page_users = SuperAdminUsers(current_user=self.user)
-
-        self.pages.addWidget(self.page_projects)
-        self.pages.addWidget(self.page_review)
-        self.pages.addWidget(self.page_template)
-        self.pages.addWidget(self.page_users)
-
-    # ================= HELPER =================
-    def get_greeting(self):
-        """Get time-appropriate greeting"""
-        from datetime import datetime
+    # ── Helpers ───────────────────────────────────────────────────────────────
+    def _greeting(self):
         hour = datetime.now().hour
-        
-        if hour < 12:
-            return "Good morning"
-        elif hour < 17:
-            return "Good afternoon"
-        else:
-            return "Good evening"
+        if hour < 12:  return "Good morning"
+        if hour < 17:  return "Good afternoon"
+        return "Good evening"
 
-    # ================= ACTIONS =================
+    # ── Actions ───────────────────────────────────────────────────────────────
     def handle_logout(self):
         fb = FirebaseClient()
         fb.record_logout_time(self.user["user_id"])
         self.on_logout()
 
     def open_projects(self):
-        # Navigate via main window
-        main_window = self.window()
-        if hasattr(main_window, 'show_projects'):
-            main_window.show_projects()
+        mw = self.window()
+        if hasattr(mw, "show_projects"): mw.show_projects()
 
     def open_review(self):
-        main_window = self.window()
-        if hasattr(main_window, 'show_review'):
-            main_window.show_review()
+        mw = self.window()
+        if hasattr(mw, "show_review"): mw.show_review()
 
     def open_template(self):
-        main_window = self.window()
-        if hasattr(main_window, 'show_templates'):
-            main_window.show_templates()
+        mw = self.window()
+        if hasattr(mw, "show_templates"): mw.show_templates()
 
     def open_users(self):
-        main_window = self.window()
-        if hasattr(main_window, 'show_users'):
-            main_window.show_users()
+        mw = self.window()
+        if hasattr(mw, "show_users"): mw.show_users()
 
     def download_employee_report(self):
-        """Generate employee performance report with date range"""
+        from utils.modern_dialogs import ModernMessageBox
         try:
-            # Show modern date range dialog
             dialog = DateRangeDialog(self)
             if dialog.exec() == QDialog.Accepted:
                 start_date, end_date = dialog.get_date_range()
-                
-                # Import and generate report
                 from services.employee_performance_report import generate_employee_performance_report
-                
                 file = generate_employee_performance_report(start_date, end_date)
-                
-                date_info = ""
-                if start_date and end_date:
-                    date_info = f"\nDate Range: {start_date} to {end_date}"
-                elif start_date:
-                    date_info = f"\nFrom: {start_date}"
-                elif end_date:
-                    date_info = f"\nUntil: {end_date}"
-                else:
-                    date_info = "\nAll Time Data"
-                
-                QMessageBox.information(
-                    self,
-                    "Report Generated",
-                    f"Employee performance report created:{date_info}\n\nFile: {file}"
-                )
+                date_info = f"\nRange: {start_date} → {end_date}" if (start_date and end_date) else "\nAll time data"
+                ModernMessageBox.success(self, "Report Ready", f"Employee report saved.{date_info}\n\n{file}")
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Failed to generate report: {str(e)}"
-            )
+            ModernMessageBox.error(self, "Error", f"Failed to generate report: {str(e)}")
 
     def download_project_report(self):
-        """Generate project status report"""
+        from utils.modern_dialogs import ModernMessageBox
         try:
             from services.project_status_report import generate_project_status_report
-            
             file = generate_project_status_report()
-            
-            QMessageBox.information(
-                self,
-                "Report Generated",
-                f"Project status report created with payment tracking!\n\nFile: {file}"
-            )
+            ModernMessageBox.success(self, "Report Ready", f"Project status report saved.\n\n{file}")
         except Exception as e:
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Failed to generate report: {str(e)}"
-            )
+            ModernMessageBox.error(self, "Error", f"Failed to generate report: {str(e)}")

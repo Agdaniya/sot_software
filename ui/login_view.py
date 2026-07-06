@@ -1,17 +1,11 @@
 from PySide6.QtWidgets import (
-    QWidget,
-    QVBoxLayout,
-    QLabel,
-    QLineEdit,
-    QPushButton,
-    QFrame,
-    QHBoxLayout,
-    QMessageBox,
-    QDialog,
-    QDialogButtonBox
+    QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
+    QFrame, QHBoxLayout, QDialog, QDialogButtonBox
 )
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QFont
 from services.auth_client import AuthClient
+import utils.theme as T
 
 
 class LoginView(QWidget):
@@ -19,440 +13,289 @@ class LoginView(QWidget):
 
     def __init__(self):
         super().__init__()
+        self.setStyleSheet(f"QWidget {{ background: {T.BG}; font-family: 'Segoe UI', 'Inter', Arial, sans-serif; }}")
 
-        # Adaptive styling for light/dark mode
-        self.setStyleSheet("""
-            QWidget {
-                background: #e8ebf0;
-                font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
-            }
+        root = QHBoxLayout(self)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
+
+        # ── LEFT accent panel ─────────────────────────────────────────────────
+        left = QFrame()
+        left.setStyleSheet(f"""
+            QFrame {{
+                background: {T.ACCENT};
+                border: none;
+            }}
         """)
+        left_layout = QVBoxLayout(left)
+        left_layout.setContentsMargins(60, 0, 60, 0)
+        left_layout.setSpacing(16)
+        left_layout.addStretch()
 
-        main_layout = QVBoxLayout()
-        main_layout.setContentsMargins(0, 0, 0, 0)
+        brand = QLabel("SOT")
+        brand.setStyleSheet("QLabel { color: white; font-size: 52px; font-weight: 800; background: transparent; }")
+        brand.setAlignment(Qt.AlignLeft)
 
-        # ---------- CENTER CARD ----------
+        tagline = QLabel("Staff Operations\nTracker")
+        tagline.setStyleSheet("QLabel { color: rgba(255,255,255,0.80); font-size: 20px; font-weight: 400; line-height: 1.5; background: transparent; }")
+
+        divider = QFrame()
+        divider.setFixedHeight(2)
+        divider.setFixedWidth(48)
+        divider.setStyleSheet("background: rgba(255,255,255,0.40); border: none;")
+
+        caption = QLabel("Built for architecture firms.\nTrack every drawing,\nevery step, every client.")
+        caption.setStyleSheet("QLabel { color: rgba(255,255,255,0.65); font-size: 13px; line-height: 1.7; background: transparent; }")
+
+        left_layout.addWidget(brand)
+        left_layout.addWidget(tagline)
+        left_layout.addSpacing(24)
+        left_layout.addWidget(divider)
+        left_layout.addSpacing(16)
+        left_layout.addWidget(caption)
+        left_layout.addStretch()
+
+        # ── RIGHT login form ──────────────────────────────────────────────────
+        right = QFrame()
+        right.setStyleSheet(f"QFrame {{ background: {T.SURFACE}; border: none; }}")
+        right_layout = QVBoxLayout(right)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.addStretch()
+
+        # Card
         card = QFrame()
-        card.setFixedWidth(480)
-        card.setStyleSheet("""
-            QFrame {
-                background: white;
-                border-radius: 16px;
+        card.setFixedWidth(400)
+        card.setStyleSheet(f"""
+            QFrame {{
+                background: {T.SURFACE};
                 border: none;
-            }
+                border-radius: {T.RADIUS_LG};
+            }}
         """)
 
-        layout = QVBoxLayout(card)
-        layout.setSpacing(20)
-        layout.setContentsMargins(48, 48, 48, 48)
+        form = QVBoxLayout(card)
+        form.setContentsMargins(44, 44, 44, 44)
+        form.setSpacing(0)
 
-        # ---------- TITLE ----------
-        title = QLabel("SOT")
-        title.setAlignment(Qt.AlignCenter)
-        title.setStyleSheet("""
-            QLabel {
-                font-size: 40px;
-                font-weight: 700;
-                color: #1e293b;
-                background: transparent;
-                border: none;
-            }
-        """)
+        heading = QLabel("Welcome back")
+        heading.setStyleSheet(f"QLabel {{ font-size: 24px; font-weight: 700; color: {T.TEXT}; background: transparent; }}")
 
-        subtitle = QLabel("Staff Project Tracker")
-        subtitle.setAlignment(Qt.AlignCenter)
-        subtitle.setStyleSheet("""
-            QLabel {
-                font-size: 16px;
-                font-weight: 400;
-                color: #94a3b8;
-                background: transparent;
-                border: none;
-            }
-        """)
+        sub = QLabel("Sign in to your account")
+        sub.setStyleSheet(f"QLabel {{ font-size: 13px; color: {T.TEXT_SEC}; background: transparent; margin-top: 4px; }}")
 
-        layout.addWidget(title)
-        layout.addWidget(subtitle)
-        layout.addSpacing(24)
+        form.addWidget(heading)
+        form.addWidget(sub)
+        form.addSpacing(32)
 
-        # ---------- EMAIL ----------
-        email_label = QLabel("Email")
-        email_label.setStyleSheet("""
-            QLabel {
-                font-size: 14px;
-                font-weight: 500;
-                color: #1e293b;
-                background: transparent;
-                border: none;
-            }
-        """)
-
+        # Email
+        email_lbl = QLabel("Email address")
+        email_lbl.setStyleSheet(f"QLabel {{ font-size: 12px; font-weight: 600; color: {T.TEXT_SEC}; background: transparent; letter-spacing: 0.3px; }}")
         self.email_input = QLineEdit()
-        self.email_input.setPlaceholderText("Enter your email")
-        self.email_input.setStyleSheet("""
-            QLineEdit {
-                padding: 12px 16px;
-                border: none;
-                border-radius: 8px;
-                font-size: 14px;
-                background: #f1f5f9;
-                color: #1e293b;
-            }
-            QLineEdit:focus {
-                background: #e2e8f0;
-            }
-            QLineEdit::placeholder {
-                color: #94a3b8;
-            }
-        """)
-        self.email_input.setMinimumHeight(44)
+        self.email_input.setPlaceholderText("you@company.com")
+        self.email_input.setMinimumHeight(42)
+        self.email_input.setStyleSheet(T.input_field())
 
-        # ---------- PASSWORD ----------
-        password_label = QLabel("Password")
-        password_label.setStyleSheet("""
-            QLabel {
-                font-size: 14px;
-                font-weight: 500;
-                color: #1e293b;
-                background: transparent;
-                border: none;
-            }
-        """)
+        form.addWidget(email_lbl)
+        form.addSpacing(6)
+        form.addWidget(self.email_input)
+        form.addSpacing(18)
 
-        password_container = QFrame()
-        password_container.setStyleSheet("""
-            QFrame {
-                background: #f1f5f9;
-                border-radius: 8px;
-            }
+        # Password
+        pass_lbl = QLabel("Password")
+        pass_lbl.setStyleSheet(f"QLabel {{ font-size: 12px; font-weight: 600; color: {T.TEXT_SEC}; background: transparent; letter-spacing: 0.3px; }}")
+
+        pass_row = QFrame()
+        pass_row.setStyleSheet(f"""
+            QFrame {{
+                border: 1.5px solid {T.BORDER};
+                border-radius: {T.RADIUS_SM};
+                background: {T.SURFACE};
+            }}
+            QFrame:focus-within {{
+                border: 1.5px solid {T.ACCENT};
+            }}
         """)
-        password_layout = QHBoxLayout(password_container)
-        password_layout.setContentsMargins(0, 0, 0, 0)
-        password_layout.setSpacing(0)
+        pass_row_layout = QHBoxLayout(pass_row)
+        pass_row_layout.setContentsMargins(0, 0, 6, 0)
+        pass_row_layout.setSpacing(0)
 
         self.password_input = QLineEdit()
         self.password_input.setPlaceholderText("Enter your password")
         self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setStyleSheet("""
-            QLineEdit {
-                padding: 12px 16px;
+        self.password_input.setMinimumHeight(40)
+        self.password_input.setStyleSheet(f"""
+            QLineEdit {{
                 border: none;
+                padding: 10px 14px;
+                font-size: 13px;
                 background: transparent;
-                font-size: 14px;
-                color: #1e293b;
-            }
-            QLineEdit::placeholder {
-                color: #94a3b8;
-            }
+                color: {T.TEXT};
+            }}
+            QLineEdit::placeholder {{ color: {T.TEXT_HINT}; }}
         """)
-        self.password_input.setMinimumHeight(44)
-
-        self.toggle_password_btn = QPushButton("👁️")
-        self.toggle_password_btn.setCursor(Qt.PointingHandCursor)
-        self.toggle_password_btn.setFixedSize(44, 44)
-        self.toggle_password_btn.setStyleSheet("""
-            QPushButton {
-                background: transparent;
-                border: none;
-                color: #64748b;
-                font-size: 20px;
-                padding: 0px;
-                margin: 0px;
-            }
-            QPushButton:hover {
-                background: #e2e8f0;
-                border-radius: 6px;
-            }
-        """)
-        self.toggle_password_btn.clicked.connect(self.toggle_password_visibility)
         self.password_visible = False
 
-        password_layout.addWidget(self.password_input)
-        password_layout.addWidget(self.toggle_password_btn)
+        self.toggle_password_btn = QPushButton("Show")
+        self.toggle_password_btn.setCursor(Qt.PointingHandCursor)
+        self.toggle_password_btn.setFixedHeight(28)
+        self.toggle_password_btn.setStyleSheet(f"""
+            QPushButton {{
+                background: {T.BG};
+                color: {T.TEXT_SEC};
+                border: none;
+                border-radius: 4px;
+                font-size: 11px;
+                font-weight: 600;
+                padding: 0 10px;
+            }}
+            QPushButton:hover {{ background: {T.BORDER}; }}
+        """)
+        self.toggle_password_btn.clicked.connect(self.toggle_password_visibility)
 
-        layout.addWidget(email_label)
-        layout.addWidget(self.email_input)
-        layout.addSpacing(8)
-        layout.addWidget(password_label)
-        layout.addWidget(password_container)
+        pass_row_layout.addWidget(self.password_input)
+        pass_row_layout.addWidget(self.toggle_password_btn)
 
-        # ---------- SIGN IN BUTTON ----------
+        form.addWidget(pass_lbl)
+        form.addSpacing(6)
+        form.addWidget(pass_row)
+        form.addSpacing(28)
+
+        # Sign In button
         self.login_button = QPushButton("Sign In")
         self.login_button.setCursor(Qt.PointingHandCursor)
-        self.login_button.setMinimumHeight(48)
-        self.login_button.setStyleSheet("""
-            QPushButton {
-                background: #1e40af;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-size: 15px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background: #1e3a8a;
-            }
-            QPushButton:pressed {
-                background: #1e3a8a;
-            }
-        """)
+        self.login_button.setMinimumHeight(44)
+        self.login_button.setStyleSheet(T.btn_primary())
 
-        layout.addSpacing(8)
-        layout.addWidget(self.login_button)
+        form.addWidget(self.login_button)
 
-        # ---------- ERROR MESSAGE ----------
+        # Error label
         self.error_label = QLabel("")
         self.error_label.setAlignment(Qt.AlignCenter)
         self.error_label.setWordWrap(True)
-        self.error_label.setStyleSheet("""
-            QLabel {
-                color: #dc2626;
-                background: #fef2f2;
-                border: 1px solid #fecaca;
-                border-radius: 8px;
-                padding: 12px;
-                font-size: 13px;
-            }
+        self.error_label.setStyleSheet(f"""
+            QLabel {{
+                color: {T.DANGER};
+                background: {T.DANGER_BG};
+                border: 1px solid #FECACA;
+                border-radius: {T.RADIUS_SM};
+                padding: 10px;
+                font-size: 12px;
+                margin-top: 12px;
+            }}
         """)
         self.error_label.hide()
-        layout.addWidget(self.error_label)
+        form.addWidget(self.error_label)
 
-        # ---------- CENTER ----------
-        main_layout.addStretch()
-        main_layout.addWidget(card, 0, Qt.AlignCenter)
-        main_layout.addStretch()
-        self.setLayout(main_layout)
+        right_layout.addWidget(card, 0, Qt.AlignCenter)
+        right_layout.addStretch()
 
-        # ---------- AUTH ----------
+        root.addWidget(left, 1)
+        root.addWidget(right, 1)
+
+        # Auth
         self.auth = AuthClient("AIzaSyAXG7m0qlHpg2bETH9bvSYnriYfnEQjzmI")
 
-        # ---------- EVENTS ----------
         self.login_button.clicked.connect(self.handle_login)
         self.email_input.returnPressed.connect(self.handle_login)
         self.password_input.returnPressed.connect(self.handle_login)
 
     def toggle_password_visibility(self):
-        """Toggle password visibility"""
         if self.password_visible:
             self.password_input.setEchoMode(QLineEdit.Password)
-            self.toggle_password_btn.setText("👁️")
+            self.toggle_password_btn.setText("Show")
             self.password_visible = False
         else:
             self.password_input.setEchoMode(QLineEdit.Normal)
-            self.toggle_password_btn.setText("🙈")
+            self.toggle_password_btn.setText("Hide")
             self.password_visible = True
 
     def show_password_change_dialog(self, user):
-        """
-        FIX #3: Password change dialog with FIXED STYLING
-        Ensures proper contrast in both light and dark modes
-        """
+        """Force password change on first login."""
+        from utils.modern_dialogs import ModernMessageBox
+
         dialog = QDialog(self)
-        dialog.setWindowTitle("Password Change Required")
+        dialog.setWindowTitle("Change Password")
         dialog.setModal(True)
-        dialog.setMinimumWidth(500)
-        
-        # FIX #3: EXPLICIT background and text colors that work everywhere
-        dialog.setStyleSheet("""
-            QDialog {
-                background-color: white;
-            }
-            QLabel {
-                background-color: transparent;
-            }
-        """)
-        
+        dialog.setMinimumWidth(460)
+        dialog.setStyleSheet(f"QDialog {{ background: {T.SURFACE}; }} QLabel {{ background: transparent; }}")
+
         layout = QVBoxLayout(dialog)
-        layout.setSpacing(20)
-        layout.setContentsMargins(32, 32, 32, 32)
-        
-        # Title with proper color
-        title = QLabel("🔒 Change Your Password")
-        title.setStyleSheet("""
-            QLabel {
-                font-size: 20px;
-                font-weight: 600;
-                color: #1e293b;
-                background-color: transparent;
-            }
-        """)
+        layout.setSpacing(16)
+        layout.setContentsMargins(36, 36, 36, 36)
+
+        title = QLabel("Set a new password")
+        title.setStyleSheet(f"QLabel {{ font-size: 18px; font-weight: 700; color: {T.TEXT}; }}")
         layout.addWidget(title)
-        
-        # Message with proper color
-        message = QLabel(
-            f"Welcome, {user.get('username', 'User')}!\n\n"
-            "For security reasons, you must change your password before continuing."
-        )
-        message.setWordWrap(True)
-        message.setStyleSheet("""
-            QLabel {
-                font-size: 14px;
-                color: #475569;
-                line-height: 1.5;
-                background-color: transparent;
-            }
-        """)
-        layout.addWidget(message)
-        
-        # New password field
-        new_pass_label = QLabel("New Password (minimum 6 characters)")
-        new_pass_label.setStyleSheet("""
-            QLabel {
-                font-size: 13px;
-                font-weight: 500;
-                color: #1e293b;
-                background-color: transparent;
-            }
-        """)
-        layout.addWidget(new_pass_label)
-        
+
+        msg = QLabel(f"Hi {user.get('username', 'there')} — please choose a new password before continuing.")
+        msg.setWordWrap(True)
+        msg.setStyleSheet(f"QLabel {{ font-size: 13px; color: {T.TEXT_SEC}; }}")
+        layout.addWidget(msg)
+
+        lbl1 = QLabel("New password (min 6 characters)")
+        lbl1.setStyleSheet(f"QLabel {{ font-size: 12px; font-weight: 600; color: {T.TEXT_SEC}; }}")
+        layout.addWidget(lbl1)
         new_pass_input = QLineEdit()
         new_pass_input.setEchoMode(QLineEdit.Password)
-        new_pass_input.setPlaceholderText("Enter new password")
-        new_pass_input.setStyleSheet("""
-            QLineEdit {
-                padding: 12px 16px;
-                border: 2px solid #e2e8f0;
-                border-radius: 8px;
-                font-size: 14px;
-                background-color: white;
-                color: #1e293b;
-            }
-            QLineEdit:focus {
-                border: 2px solid #1e40af;
-                background-color: #f8fafc;
-            }
-            QLineEdit::placeholder {
-                color: #94a3b8;
-            }
-        """)
+        new_pass_input.setPlaceholderText("New password")
+        new_pass_input.setStyleSheet(T.input_field())
+        new_pass_input.setMinimumHeight(40)
         layout.addWidget(new_pass_input)
-        
-        # Confirm password field
-        confirm_pass_label = QLabel("Confirm New Password")
-        confirm_pass_label.setStyleSheet("""
-            QLabel {
-                font-size: 13px;
-                font-weight: 500;
-                color: #1e293b;
-                background-color: transparent;
-            }
-        """)
-        layout.addWidget(confirm_pass_label)
-        
+
+        lbl2 = QLabel("Confirm new password")
+        lbl2.setStyleSheet(f"QLabel {{ font-size: 12px; font-weight: 600; color: {T.TEXT_SEC}; }}")
+        layout.addWidget(lbl2)
         confirm_pass_input = QLineEdit()
         confirm_pass_input.setEchoMode(QLineEdit.Password)
-        confirm_pass_input.setPlaceholderText("Re-enter new password")
-        confirm_pass_input.setStyleSheet("""
-            QLineEdit {
-                padding: 12px 16px;
-                border: 2px solid #e2e8f0;
-                border-radius: 8px;
-                font-size: 14px;
-                background-color: white;
-                color: #1e293b;
-            }
-            QLineEdit:focus {
-                border: 2px solid #1e40af;
-                background-color: #f8fafc;
-            }
-            QLineEdit::placeholder {
-                color: #94a3b8;
-            }
-        """)
+        confirm_pass_input.setPlaceholderText("Confirm password")
+        confirm_pass_input.setStyleSheet(T.input_field())
+        confirm_pass_input.setMinimumHeight(40)
         layout.addWidget(confirm_pass_input)
-        
-        # Error label with proper contrast
+
         error_label = QLabel("")
-        error_label.setStyleSheet("""
-            QLabel {
-                color: #dc2626;
-                background-color: #fef2f2;
-                border: 1px solid #fecaca;
-                border-radius: 6px;
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-        """)
+        error_label.setStyleSheet(f"QLabel {{ color: {T.DANGER}; background: {T.DANGER_BG}; border-radius: 5px; padding: 8px; font-size: 12px; }}")
         error_label.hide()
         layout.addWidget(error_label)
-        
-        # Buttons with explicit colors
-        button_box = QDialogButtonBox()
-        change_btn = QPushButton("Change Password")
-        change_btn.setCursor(Qt.PointingHandCursor)
-        change_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #1e40af;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 14px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background-color: #1e3a8a;
-            }
-        """)
-        
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(10)
         cancel_btn = QPushButton("Cancel")
+        cancel_btn.setStyleSheet(T.btn_secondary())
         cancel_btn.setCursor(Qt.PointingHandCursor)
-        cancel_btn.setStyleSheet("""
-            QPushButton {
-                background-color: #f1f5f9;
-                color: #1e293b;
-                border: 2px solid #e2e8f0;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-size: 14px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background-color: #e2e8f0;
-            }
-        """)
-        
-        button_box.addButton(cancel_btn, QDialogButtonBox.RejectRole)
-        button_box.addButton(change_btn, QDialogButtonBox.AcceptRole)
-        layout.addWidget(button_box)
-        
-        # Validation function
+        cancel_btn.setMinimumHeight(40)
+        change_btn = QPushButton("Change Password")
+        change_btn.setStyleSheet(T.btn_primary())
+        change_btn.setCursor(Qt.PointingHandCursor)
+        change_btn.setMinimumHeight(40)
+        btn_row.addStretch()
+        btn_row.addWidget(cancel_btn)
+        btn_row.addWidget(change_btn)
+        layout.addLayout(btn_row)
+
         def validate_and_accept():
             new_pass = new_pass_input.text().strip()
-            confirm_pass = confirm_pass_input.text().strip()
-            
+            confirm  = confirm_pass_input.text().strip()
             if not new_pass:
-                error_label.setText("Password cannot be empty")
-                error_label.show()
-                return
-            
+                error_label.setText("Password cannot be empty."); error_label.show(); return
             if len(new_pass) < 6:
-                error_label.setText("Password must be at least 6 characters")
-                error_label.show()
-                return
-            
-            if new_pass != confirm_pass:
-                error_label.setText("Passwords do not match")
-                error_label.show()
-                return
-            
+                error_label.setText("Password must be at least 6 characters."); error_label.show(); return
+            if new_pass != confirm:
+                error_label.setText("Passwords do not match."); error_label.show(); return
             dialog.new_password = new_pass
             dialog.accept()
-        
+
         change_btn.clicked.connect(validate_and_accept)
         cancel_btn.clicked.connect(dialog.reject)
         new_pass_input.returnPressed.connect(validate_and_accept)
         confirm_pass_input.returnPressed.connect(validate_and_accept)
-        
         dialog.new_password = None
-        
+
         if dialog.exec() == QDialog.Accepted:
             return dialog.new_password
         return None
 
     def handle_login(self):
-        email = self.email_input.text().strip()
+        email    = self.email_input.text().strip()
         password = self.password_input.text().strip()
 
         if not email or not password:
@@ -460,15 +303,19 @@ class LoginView(QWidget):
             self.error_label.show()
             return
 
+        # Loading state
+        self.login_button.setText("Signing in...")
+        self.login_button.setEnabled(False)
+        self.error_label.hide()
+
         try:
             user_data = self.auth.sign_in(email, password)
 
             from services.firebase_client import FirebaseClient
             fb = FirebaseClient()
 
-            users = fb.root.child("users").get() or {}
+            users       = fb.root.child("users").get() or {}
             current_user = None
-
             for uid, user in users.items():
                 if user.get("email") == user_data["email"]:
                     current_user = user
@@ -479,50 +326,31 @@ class LoginView(QWidget):
                 self.error_label.show()
                 return
 
-            # Record login time
             fb.record_login_time(current_user["user_id"])
 
-            self.error_label.hide()
-            
-            # Check if password change is required
             if current_user.get("first_login", False):
-                # Show password change dialog
                 new_password = self.show_password_change_dialog(current_user)
                 if new_password:
-                    # Update password in Firebase Auth and clear first_login flag
                     try:
                         import firebase_admin
                         from firebase_admin import auth as firebase_auth
-                        
-                        firebase_auth.update_user(
-                            current_user["user_id"],
-                            password=new_password
-                        )
-                        
-                        # Clear first_login flag
+                        firebase_auth.update_user(current_user["user_id"], password=new_password)
                         current_user["first_login"] = False
                         fb.save_user(current_user)
-                        
                         from utils.modern_dialogs import ModernMessageBox
-                        ModernMessageBox.success(
-                            self,
-                            "Password Changed",
-                            "Your password has been changed successfully!"
-                        )
+                        ModernMessageBox.success(self, "Password Changed", "Your password has been updated successfully.")
                     except Exception as e:
                         from utils.modern_dialogs import ModernMessageBox
-                        ModernMessageBox.error(
-                            self,
-                            "Error",
-                            f"Failed to update password: {str(e)}"
-                        )
+                        ModernMessageBox.error(self, "Error", f"Failed to update password: {str(e)}")
                         return
                 else:
-                    # User cancelled password change
                     return
-            
+
             self.login_success.emit(current_user)
 
         except Exception:
-            self.error_label.setText("Invalid credentials. Please try again.")
+            self.error_label.setText("Incorrect email or password. Please try again.")
             self.error_label.show()
+        finally:
+            self.login_button.setText("Sign In")
+            self.login_button.setEnabled(True)
