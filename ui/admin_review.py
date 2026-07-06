@@ -172,137 +172,144 @@ class AdminReview(QWidget):
         self._collapsed = {}
         self._DEFAULT_COLLAPSED = True
 
-        self.setStyleSheet("""
-            QWidget {
-                background: #e8ebf0;
-                font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
-                color: #1e293b;
-            }
-        """)
+        import utils.theme as T
+        self.setStyleSheet(T.app_base())
 
-        root = QHBoxLayout(self)
-        root.setContentsMargins(40, 40, 40, 40)
-        root.setSpacing(24)
+        # ── Layout: top sub-bar + two-panel body ──────────────────────────────
+        from ui.admin_dashboard import make_topbar
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        topbar, back_btn = make_topbar(
+            self, None, None, show_back=True, back_title="Review & Payment"
+        )
+        if back_btn:
+            back_btn.clicked.connect(self._go_back)
+        root_layout.addWidget(topbar)
+
+        body = QWidget()
+        body.setStyleSheet(f"QWidget {{ background: {T.BG}; }}")
+        root = QHBoxLayout(body)
+        root.setContentsMargins(0, 0, 0, 0)
+        root.setSpacing(0)
 
         # ─── LEFT PANEL ──────────────────────────────────────────────────────
         left_frame = QFrame()
+        left_frame.setFixedWidth(380)
         left_frame.setStyleSheet(
-            "QFrame { background: white; border: none; border-radius: 12px; }"
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-right: 1px solid {T.BORDER_SOLID}; }}"
         )
         left = QVBoxLayout(left_frame)
-        left.setContentsMargins(20, 24, 20, 20)
-        left.setSpacing(12)
+        left.setContentsMargins(0, 0, 0, 0)
+        left.setSpacing(0)
 
-        # Title row with counter badges
-        title_row = QHBoxLayout()
+        # Panel header
+        left_hdr = QFrame()
+        left_hdr.setFixedHeight(52)
+        left_hdr.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        lh = QHBoxLayout(left_hdr)
+        lh.setContentsMargins(16, 0, 16, 0)
         self.left_title = QLabel("Review & Payment")
         self.left_title.setStyleSheet(
-            "font-size:17px; font-weight:700; color:#1e293b; background:transparent;"
+            f"QLabel {{ font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
         )
-        title_row.addWidget(self.left_title)
-        title_row.addStretch()
-
         self.pending_badge = QLabel()
         self.pending_badge.setStyleSheet(
-            "background:#f97316; color:white; font-size:11px; font-weight:700;"
-            "border-radius:10px; padding:3px 10px;"
+            f"QLabel {{ background: {T.WARNING}; color: white; font-size: 10px; "
+            f"font-weight: 700; border-radius: 10px; padding: 2px 8px; }}"
         )
         self.pending_badge.hide()
-        title_row.addWidget(self.pending_badge)
-        left.addLayout(title_row)
+        lh.addWidget(self.left_title)
+        lh.addSpacing(8)
+        lh.addWidget(self.pending_badge)
+        lh.addStretch()
+        left.addWidget(left_hdr)
 
-        # Legend
-        legend_row = QHBoxLayout()
-        legend_row.setSpacing(16)
-        for colour, label in [("#fde047", "Needs Review"), ("#86efac", "Approved")]:
+        # Legend strip
+        legend_strip = QFrame()
+        legend_strip.setFixedHeight(36)
+        legend_strip.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        ls = QHBoxLayout(legend_strip)
+        ls.setContentsMargins(16, 0, 16, 0)
+        ls.setSpacing(16)
+        for colour, label in [(T.WARNING, "Needs Review"), (T.TEAL, "Approved")]:
             dot = QLabel()
-            dot.setFixedSize(10, 10)
-            dot.setStyleSheet(
-                f"background:{colour}; border-radius:5px; border:1px solid #94a3b8;"
-            )
+            dot.setFixedSize(8, 8)
+            dot.setStyleSheet(f"background: {colour}; border-radius: 4px;")
             txt = QLabel(label)
-            txt.setStyleSheet("font-size:11px; color:#94a3b8; background:transparent;")
+            txt.setStyleSheet(f"font-size: 11px; color: {T.TEXT_SEC}; background: transparent;")
             pair = QHBoxLayout()
             pair.setSpacing(5)
+            pair.setContentsMargins(0, 0, 0, 0)
             pair.addWidget(dot)
             pair.addWidget(txt)
-            legend_row.addLayout(pair)
-        legend_row.addStretch()
-        left.addLayout(legend_row)
-
-        # Divider
-        div = QFrame()
-        div.setFrameShape(QFrame.HLine)
-        div.setStyleSheet("color: #f1f5f9;")
-        left.addWidget(div)
+            ls.addLayout(pair)
+        ls.addStretch()
+        left.addWidget(legend_strip)
 
         self.list = QListWidget()
-        self.list.setStyleSheet("""
-            QListWidget {
-                border: none; background: transparent; outline: none;
-            }
-            QListWidget::item {
-                border-radius: 10px;
-                margin-bottom: 3px;
-                padding: 0px;
-            }
-            QListWidget::item:hover { background: rgba(0,0,0,0.02); }
-            QListWidget::item:selected { background: transparent; }
-        """)
-        self.list.setSpacing(2)
+        self.list.setStyleSheet(
+            f"QListWidget {{ border: none; background: transparent; outline: none; }}"
+            f"QListWidget::item {{ border-radius: 0; margin: 0; padding: 0; }}"
+            f"QListWidget::item:hover {{ background: {T.BG}; }}"
+            f"QListWidget::item:selected {{ background: transparent; }}"
+        )
+        self.list.setSpacing(0)
         self.list.itemClicked.connect(self._on_item_clicked)
         left.addWidget(self.list)
 
         # ─── RIGHT PANEL ─────────────────────────────────────────────────────
         right_outer = QFrame()
         right_outer.setStyleSheet(
-            "QFrame { background: white; border: none; border-radius: 12px; }"
+            f"QFrame {{ background: {T.BG}; border: none; }}"
         )
 
         right_scroll = QScrollArea()
         right_scroll.setWidgetResizable(True)
         right_scroll.setStyleSheet(
-            "QScrollArea { border: none; background: transparent; border-radius: 12px; }"
+            f"QScrollArea {{ border: none; background: {T.BG}; }}"
         )
         right_scroll.setWidget(right_outer)
 
         self.right = QVBoxLayout(right_outer)
-        self.right.setContentsMargins(32, 32, 32, 32)
+        self.right.setContentsMargins(32, 28, 32, 28)
         self.right.setSpacing(16)
-
-        panel_title = QLabel("Drawing Details")
-        panel_title.setStyleSheet(
-            "font-size:18px; font-weight:700; color:#1e293b; background:transparent;"
-        )
-        self.right.addWidget(panel_title)
 
         self.empty_label = QLabel("← Select a drawing from the list to review it")
         self.empty_label.setAlignment(Qt.AlignCenter)
         self.empty_label.setStyleSheet(
-            "color:#94a3b8; font-size:14px; background:transparent; padding:60px 20px;"
+            f"color: {T.TEXT_HINT}; font-size: 13px; background: transparent; padding: 60px 20px;"
         )
         self.right.addWidget(self.empty_label)
         self.right.addStretch()
 
         self.details_widget = QWidget()
         self.details_layout = QVBoxLayout(self.details_widget)
-        self.details_layout.setSpacing(16)
+        self.details_layout.setSpacing(14)
         self.details_layout.setContentsMargins(0, 0, 0, 0)
         self.details_widget.hide()
         self.right.addWidget(self.details_widget)
 
         self.drawing_title = QLabel()
         self.drawing_title.setStyleSheet(
-            "font-size:22px; font-weight:700; color:#1e293b; background:transparent;"
+            f"font-size: 17px; font-weight: 600; color: {T.TEXT}; background: transparent; letter-spacing: -0.3px;"
         )
 
         self.project_name_label = QLabel()
         self.project_name_label.setStyleSheet(
-            "font-size:16px; font-weight:700; color:#1e3a8a; background:transparent;"
+            f"font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent;"
         )
         self.client_label = QLabel()
         self.client_label.setStyleSheet(
-            "font-size:13px; color:#64748b; background:transparent;"
+            f"font-size: 12px; color: {T.TEXT_SEC}; background: transparent;"
         )
 
         self.details_layout.addWidget(self.drawing_title)
@@ -311,71 +318,57 @@ class AdminReview(QWidget):
 
         self.payment_status_label = QLabel()
         self.payment_status_label.setStyleSheet(
-            "font-size:13px; padding:8px 14px; border-radius:6px; font-weight:600;"
+            f"font-size: 12px; padding: 6px 12px; border-radius: 4px; font-weight: 600;"
         )
         self.details_layout.addWidget(self.payment_status_label)
 
         substeps_title = QLabel("Sub-Steps")
         substeps_title.setStyleSheet(
-            "font-size:15px; font-weight:600; color:#1e293b;"
-            "background:transparent; margin-top:4px;"
+            f"font-size: 12px; font-weight: 600; color: {T.TEXT_SEC}; "
+            f"background: transparent; letter-spacing: 0.5px; text-transform: uppercase;"
         )
         self.details_layout.addWidget(substeps_title)
 
         self.steps_container = QVBoxLayout()
         self.details_layout.addLayout(self.steps_container)
 
-        self.payment_btn = QPushButton("💰 Mark as Paid")
+        self.payment_btn = QPushButton("Mark as Paid")
         self.payment_btn.setCheckable(True)
         self.payment_btn.setCursor(Qt.PointingHandCursor)
-        self.payment_btn.setStyleSheet("""
-            QPushButton {
-                background: #f59e0b; color: white; border: none;
-                border-radius: 8px; padding: 11px 22px;
-                font-size: 14px; font-weight: 600;
-            }
-            QPushButton:hover { background: #d97706; }
-            QPushButton:checked { background: #16a34a; }
-            QPushButton:checked:hover { background: #15803d; }
-        """)
+        self.payment_btn.setMinimumHeight(38)
+        self.payment_btn.setStyleSheet(
+            f"QPushButton {{ background: {T.SURFACE}; color: {T.WARNING}; "
+            f"border: 1px solid #FED7AA; border-radius: {T.RADIUS_SM}; "
+            f"padding: 0 18px; font-size: 13px; font-weight: 600; }}"
+            f"QPushButton:hover {{ background: #FFFBEB; }}"
+            f"QPushButton:checked {{ background: {T.TEAL}; color: white; border: none; }}"
+            f"QPushButton:checked:hover {{ background: #0D6460; }}"
+        )
         self.payment_btn.clicked.connect(self.handle_payment_toggle)
         self.details_layout.addWidget(self.payment_btn)
 
         btns_row = QHBoxLayout()
-        btns_row.setSpacing(12)
+        btns_row.setSpacing(10)
 
-        self.approve_btn = QPushButton("✓  Approve & Mark Client Approved")
+        self.approve_btn = QPushButton("Approve & Mark Client Approved")
         self.approve_btn.setCursor(Qt.PointingHandCursor)
-        self.approve_btn.setStyleSheet("""
-            QPushButton {
-                background: #16a34a; color: white; border: none;
-                border-radius: 8px; padding: 12px 22px;
-                font-size: 14px; font-weight: 600;
-            }
-            QPushButton:hover { background: #15803d; }
-            QPushButton:disabled { background: #d1d5db; color: #9ca3af; }
-        """)
+        self.approve_btn.setMinimumHeight(38)
+        self.approve_btn.setStyleSheet(T.btn_success())
         self.approve_btn.clicked.connect(self.handle_approve)
 
-        self.reject_btn = QPushButton("✗  Reject")
+        self.reject_btn = QPushButton("Reject")
         self.reject_btn.setCursor(Qt.PointingHandCursor)
-        self.reject_btn.setStyleSheet("""
-            QPushButton {
-                background: #dc2626; color: white; border: none;
-                border-radius: 8px; padding: 12px 22px;
-                font-size: 14px; font-weight: 600;
-            }
-            QPushButton:hover { background: #b91c1c; }
-            QPushButton:disabled { background: #d1d5db; color: #9ca3af; }
-        """)
+        self.reject_btn.setMinimumHeight(38)
+        self.reject_btn.setStyleSheet(T.btn_danger_filled())
         self.reject_btn.clicked.connect(self.handle_reject)
 
         btns_row.addWidget(self.approve_btn)
         btns_row.addWidget(self.reject_btn)
         self.details_layout.addLayout(btns_row)
 
-        root.addWidget(left_frame, 1)
+        root.addWidget(left_frame)
         root.addWidget(right_scroll, 1)
+        root_layout.addWidget(body, 1)
 
         self.refresh_timer = QTimer(self)
         self.refresh_timer.timeout.connect(self.auto_refresh)
@@ -394,6 +387,11 @@ class AdminReview(QWidget):
                 project_id, self._DEFAULT_COLLAPSED
             )
             self._apply_collapse()
+
+    def _go_back(self):
+        mw = self.window()
+        if hasattr(mw, "go_back"):
+            mw.go_back()
 
     def _apply_collapse(self):
         """Show/hide drawing rows and update chevron on project header widgets."""

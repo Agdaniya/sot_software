@@ -1,4 +1,3 @@
-# Admin Projects
 from PySide6.QtWidgets import (
     QWidget, QHBoxLayout, QVBoxLayout, QLabel,
     QListWidget, QListWidgetItem, QPushButton,
@@ -17,33 +16,65 @@ import uuid
 class AdminProjects(QWidget):
     def __init__(self, current_user=None):
         super().__init__()
-        self.current_user       = current_user
-        self.fb                 = FirebaseClient()
-        self.project_manager    = ProjectManager(self.fb)
+        self.current_user        = current_user
+        self.fb                  = FirebaseClient()
+        self.project_manager     = ProjectManager(self.fb)
         self.selected_project_id = None
 
         self.setStyleSheet(T.app_base())
 
-        root = QHBoxLayout(self)
-        root.setContentsMargins(32, 28, 32, 28)
-        root.setSpacing(20)
+        # ── Top sub-bar ───────────────────────────────────────────────────────
+        from ui.admin_dashboard import make_topbar
+        root_layout = QVBoxLayout(self)
+        root_layout.setContentsMargins(0, 0, 0, 0)
+        root_layout.setSpacing(0)
+
+        topbar, back_btn = make_topbar(
+            self, current_user, None, show_back=True, back_title="Project Management"
+        )
+        if back_btn:
+            back_btn.clicked.connect(self._go_back)
+        root_layout.addWidget(topbar)
+
+        # ── Body ──────────────────────────────────────────────────────────────
+        body = QWidget()
+        body.setStyleSheet(f"QWidget {{ background: {T.BG}; }}")
+        body_layout = QHBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(0)
 
         # ── LEFT: project list ────────────────────────────────────────────────
-        left_card = QFrame()
-        left_card.setStyleSheet(T.card())
-        left = QVBoxLayout(left_card)
-        left.setContentsMargins(24, 24, 24, 24)
-        left.setSpacing(14)
+        left_panel = QFrame()
+        left_panel.setFixedWidth(300)
+        left_panel.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-right: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        left = QVBoxLayout(left_panel)
+        left.setContentsMargins(0, 0, 0, 0)
+        left.setSpacing(0)
 
-        left_header = QHBoxLayout()
-        left_title = QLabel("Projects")
-        left_title.setStyleSheet(f"font-size: 15px; font-weight: 700; color: {T.TEXT}; background: transparent;")
+        list_header = QFrame()
+        list_header.setFixedHeight(52)
+        list_header.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        lh = QHBoxLayout(list_header)
+        lh.setContentsMargins(16, 0, 16, 0)
+        lh_title = QLabel("Projects")
+        lh_title.setStyleSheet(
+            f"QLabel {{ font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
+        )
         self.project_count_lbl = QLabel("0")
-        self.project_count_lbl.setStyleSheet(f"background: {T.BG}; color: {T.TEXT_SEC}; border-radius: 10px; padding: 2px 8px; font-size: 11px; font-weight: 600;")
-        left_header.addWidget(left_title)
-        left_header.addStretch()
-        left_header.addWidget(self.project_count_lbl)
-        left.addLayout(left_header)
+        self.project_count_lbl.setStyleSheet(
+            f"QLabel {{ background: {T.BG}; color: {T.TEXT_SEC}; border-radius: 10px; "
+            f"padding: 1px 7px; font-size: 11px; font-weight: 600; font-family: monospace; }}"
+        )
+        lh.addWidget(lh_title)
+        lh.addStretch()
+        lh.addWidget(self.project_count_lbl)
+        left.addWidget(list_header)
 
         self.project_list = QListWidget()
         self.project_list.setStyleSheet(T.list_widget())
@@ -51,44 +82,58 @@ class AdminProjects(QWidget):
         left.addWidget(self.project_list)
 
         # ── RIGHT: create / edit form ─────────────────────────────────────────
-        right_card = QFrame()
-        right_card.setStyleSheet(T.card())
+        right_outer = QScrollArea()
+        right_outer.setWidgetResizable(True)
+        right_outer.setStyleSheet(
+            f"QScrollArea {{ border: none; background: {T.BG}; }}"
+        )
 
-        right_scroll = QScrollArea()
-        right_scroll.setWidgetResizable(True)
-        right_scroll.setStyleSheet(f"QScrollArea {{ border: none; background: transparent; }}")
-        right_scroll.setWidget(right_card)
+        right_card = QFrame()
+        right_card.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; }}"
+        )
+        right_outer.setWidget(right_card)
 
         right = QVBoxLayout(right_card)
-        right.setContentsMargins(28, 28, 28, 28)
+        right.setContentsMargins(28, 24, 28, 28)
         right.setSpacing(0)
 
-        # Header row
+        # Form header
         header_row = QHBoxLayout()
         self.right_title = QLabel("New Project")
-        self.right_title.setStyleSheet(f"font-size: 15px; font-weight: 700; color: {T.TEXT}; background: transparent;")
-
+        self.right_title.setStyleSheet(
+            f"QLabel {{ font-size: 14px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
+        )
         new_btn = QPushButton("+ New Project")
         new_btn.setCursor(Qt.PointingHandCursor)
         new_btn.setFixedHeight(32)
-        new_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: {T.ACCENT_BG}; color: {T.ACCENT};
-                border: 1px solid {T.ACCENT}40; border-radius: 5px;
-                font-size: 12px; font-weight: 600; padding: 0 14px;
-            }}
-            QPushButton:hover {{ background: {T.ACCENT}18; }}
-        """)
+        new_btn.setStyleSheet(
+            f"QPushButton {{ background: {T.ACCENT_BG}; color: {T.TEXT}; "
+            f"border: 1px solid {T.BORDER_SOLID}; border-radius: {T.RADIUS_SM}; "
+            f"font-size: 12px; font-weight: 600; padding: 0 14px; }}"
+            f"QPushButton:hover {{ background: {T.BORDER_SOLID}; }}"
+        )
         new_btn.clicked.connect(self.create_new_project)
         header_row.addWidget(self.right_title)
         header_row.addStretch()
         header_row.addWidget(new_btn)
         right.addLayout(header_row)
-        right.addSpacing(24)
+
+        div = QFrame()
+        div.setFixedHeight(1)
+        div.setStyleSheet(f"background: {T.BORDER_SOLID}; border: none;")
+        right.addSpacing(16)
+        right.addWidget(div)
+        right.addSpacing(20)
+
+        lbl_style = (
+            f"QLabel {{ font-size: 11px; font-weight: 600; color: {T.TEXT_SEC}; "
+            f"background: transparent; letter-spacing: 0.5px; text-transform: uppercase; }}"
+        )
 
         # Project name
         pn_lbl = QLabel("Project Name")
-        pn_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {T.TEXT_SEC}; background: transparent;")
+        pn_lbl.setStyleSheet(lbl_style)
         self.project_name = QLineEdit()
         self.project_name.setPlaceholderText("e.g. Office Renovation 2024")
         self.project_name.setStyleSheet(T.input_field_flat())
@@ -100,7 +145,7 @@ class AdminProjects(QWidget):
 
         # Client name
         cn_lbl = QLabel("Client Name")
-        cn_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {T.TEXT_SEC}; background: transparent;")
+        cn_lbl.setStyleSheet(lbl_style)
         self.client_name = QLineEdit()
         self.client_name.setPlaceholderText("e.g. Acme Corporation")
         self.client_name.setStyleSheet(T.input_field_flat())
@@ -108,49 +153,45 @@ class AdminProjects(QWidget):
         right.addWidget(cn_lbl)
         right.addSpacing(6)
         right.addWidget(self.client_name)
-        right.addSpacing(20)
+        right.addSpacing(18)
 
-        # Assign employees section
+        # Assign employees
         assign_lbl = QLabel("Assign Employees")
-        assign_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {T.TEXT_SEC}; background: transparent;")
+        assign_lbl.setStyleSheet(lbl_style)
         right.addWidget(assign_lbl)
-        right.addSpacing(10)
+        right.addSpacing(8)
 
-        # Employee checkboxes container (scrollable)
         emp_scroll = QScrollArea()
         emp_scroll.setWidgetResizable(True)
         emp_scroll.setMaximumHeight(200)
-        emp_scroll.setStyleSheet(f"""
-            QScrollArea {{
-                border: 1.5px solid {T.BORDER};
-                border-radius: {T.RADIUS_SM};
-                background: {T.BG};
-            }}
-        """)
+        emp_scroll.setStyleSheet(
+            f"QScrollArea {{ border: 1px solid {T.BORDER_SOLID}; "
+            f"border-radius: {T.RADIUS_SM}; background: {T.BG}; }}"
+        )
         emp_container = QWidget()
         emp_container.setStyleSheet(f"QWidget {{ background: {T.BG}; }}")
         self.employee_checkboxes = {}
         self.employee_container  = QVBoxLayout(emp_container)
-        self.employee_container.setContentsMargins(14, 12, 14, 12)
+        self.employee_container.setContentsMargins(12, 10, 12, 10)
         self.employee_container.setSpacing(8)
         emp_scroll.setWidget(emp_container)
         right.addWidget(emp_scroll)
-        right.addSpacing(24)
+        right.addSpacing(22)
 
-        # Buttons row
+        # Action buttons
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
 
         self.delete_btn = QPushButton("Delete Project")
         self.delete_btn.setCursor(Qt.PointingHandCursor)
-        self.delete_btn.setMinimumHeight(40)
+        self.delete_btn.setMinimumHeight(38)
         self.delete_btn.setStyleSheet(T.btn_danger())
         self.delete_btn.clicked.connect(self.delete_project)
         self.delete_btn.hide()
 
         self.save_btn = QPushButton("Create Project")
         self.save_btn.setCursor(Qt.PointingHandCursor)
-        self.save_btn.setMinimumHeight(40)
+        self.save_btn.setMinimumHeight(38)
         self.save_btn.setStyleSheet(T.btn_primary())
         self.save_btn.clicked.connect(self.save_project)
 
@@ -163,11 +204,17 @@ class AdminProjects(QWidget):
         self.project_name.returnPressed.connect(self.save_btn.click)
         self.client_name.returnPressed.connect(self.save_btn.click)
 
-        root.addWidget(left_card, 1)
-        root.addWidget(right_scroll, 1)
+        body_layout.addWidget(left_panel)
+        body_layout.addWidget(right_outer, 1)
+        root_layout.addWidget(body, 1)
 
         self.load_projects()
         self.load_employees()
+
+    def _go_back(self):
+        mw = self.window()
+        if hasattr(mw, "go_back"):
+            mw.go_back()
 
     # ── Data ──────────────────────────────────────────────────────────────────
     def load_projects(self):
@@ -176,7 +223,10 @@ class AdminProjects(QWidget):
             projects = self.fb.get_all_projects()
             for pid, project in projects.items():
                 count = len(project.get("assigned_users", {}))
-                item  = QListWidgetItem(f"{project['name']}\n{project['client_name']}  ·  {count} employee{'s' if count != 1 else ''}")
+                item  = QListWidgetItem(
+                    f"{project['name']}\n{project['client_name']}  ·  "
+                    f"{count} employee{'s' if count != 1 else ''}"
+                )
                 item.setData(Qt.UserRole, pid)
                 self.project_list.addItem(item)
             self.project_count_lbl.setText(str(len(projects)))
@@ -190,17 +240,21 @@ class AdminProjects(QWidget):
             users_data = self.fb.root.child("users").get() or {}
             while self.employee_container.count():
                 item = self.employee_container.takeAt(0)
-                if item.widget(): item.widget().deleteLater()
+                if item.widget():
+                    item.widget().deleteLater()
             self.employee_checkboxes.clear()
 
+            cb_style = (
+                f"QCheckBox {{ font-size: 13px; color: {T.TEXT}; "
+                f"background: transparent; spacing: 8px; }}"
+                f"QCheckBox::indicator {{ width: 16px; height: 16px; "
+                f"border: 1px solid {T.BORDER_SOLID}; border-radius: 4px; background: {T.SURFACE}; }}"
+                f"QCheckBox::indicator:checked {{ background: {T.ACCENT}; border-color: {T.ACCENT}; }}"
+            )
             for uid, user in users_data.items():
                 if user.get("role") in ["employee", "admin"]:
                     cb = QCheckBox(f"{user.get('username')}  ({user.get('email')})")
-                    cb.setStyleSheet(f"""
-                        QCheckBox {{ font-size: 13px; color: {T.TEXT}; background: transparent; spacing: 8px; }}
-                        QCheckBox::indicator {{ width: 17px; height: 17px; border: 1.5px solid {T.BORDER_MED}; border-radius: 4px; background: {T.SURFACE}; }}
-                        QCheckBox::indicator:checked {{ background: {T.ACCENT}; border-color: {T.ACCENT}; }}
-                    """)
+                    cb.setStyleSheet(cb_style)
                     self.employee_checkboxes[uid] = cb
                     self.employee_container.addWidget(cb)
 
@@ -214,7 +268,8 @@ class AdminProjects(QWidget):
         try:
             project = self.fb.get_project(project_id)
             if not project:
-                ModernMessageBox.warning(self, "Error", "Project not found"); return
+                ModernMessageBox.warning(self, "Error", "Project not found")
+                return
 
             self.project_name.setText(project.get("name", ""))
             self.client_name.setText(project.get("client_name", ""))
@@ -222,10 +277,10 @@ class AdminProjects(QWidget):
             self.delete_btn.show()
             self.save_btn.setText("Save Changes")
 
-            all_users       = self.fb.root.child("users").get() or {}
-            valid_user_ids  = set(all_users.keys())
-            assigned_users  = project.get("assigned_users", {})
-            cleaned         = {uid: v for uid, v in assigned_users.items() if uid in valid_user_ids}
+            all_users      = self.fb.root.child("users").get() or {}
+            valid_user_ids = set(all_users.keys())
+            assigned_users = project.get("assigned_users", {})
+            cleaned        = {uid: v for uid, v in assigned_users.items() if uid in valid_user_ids}
 
             if len(cleaned) != len(assigned_users):
                 project["assigned_users"] = cleaned
@@ -234,7 +289,7 @@ class AdminProjects(QWidget):
             for uid, cb in self.employee_checkboxes.items():
                 cb.setChecked(uid in cleaned)
 
-            logger.info(f"Loaded project data: {project_id}")
+            logger.info(f"Loaded project: {project_id}")
         except Exception as e:
             logger.error(f"Error loading project data: {str(e)}")
             ModernMessageBox.error(self, "Error", f"Failed to load project: {str(e)}")
@@ -251,7 +306,8 @@ class AdminProjects(QWidget):
 
     def delete_project(self):
         if not self.selected_project_id:
-            ModernMessageBox.warning(self, "No Selection", "Select a project to delete"); return
+            ModernMessageBox.warning(self, "No Selection", "Select a project to delete")
+            return
         try:
             project      = self.fb.get_project(self.selected_project_id)
             project_name = project.get("name", "Unknown")
@@ -270,16 +326,20 @@ class AdminProjects(QWidget):
         project_name = self.project_name.text().strip()
         client_name  = self.client_name.text().strip()
         if not project_name:
-            ModernMessageBox.warning(self, "Required", "Please enter a project name"); return
+            ModernMessageBox.warning(self, "Required", "Please enter a project name")
+            return
         if not client_name:
-            ModernMessageBox.warning(self, "Required", "Please enter a client name"); return
+            ModernMessageBox.warning(self, "Required", "Please enter a client name")
+            return
 
         assigned_users = {uid: True for uid, cb in self.employee_checkboxes.items() if cb.isChecked()}
 
         try:
             if self.current_user:
-                actor = User(self.current_user["user_id"], self.current_user["username"],
-                             self.current_user["email"], self.current_user["role"])
+                actor = User(
+                    self.current_user["user_id"], self.current_user["username"],
+                    self.current_user["email"],   self.current_user["role"]
+                )
             else:
                 actor = User("admin", "Admin", "admin@sot.com", "admin")
 
@@ -294,7 +354,9 @@ class AdminProjects(QWidget):
                 logger.info(f"Updated project: {self.selected_project_id}")
             else:
                 project_id   = str(uuid.uuid4())
-                project_data = self.project_manager.create_project(actor, project_id, project_name, client_name)
+                project_data = self.project_manager.create_project(
+                    actor, project_id, project_name, client_name
+                )
                 project_data["assigned_users"] = assigned_users
                 self.fb.save_project(project_id, project_data)
                 self.fb.create_project_drawings_from_template(project_id)

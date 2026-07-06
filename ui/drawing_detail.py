@@ -60,114 +60,134 @@ class DrawingDetail(QWidget):
 
         # ── Header bar ────────────────────────────────────────────────────────
         header = QFrame()
-        header.setFixedHeight(64)
-        header.setStyleSheet(f"""
-            QFrame {{
-                background: {T.SURFACE};
-                border: none;
-                border-bottom: 1px solid {T.BORDER};
-            }}
-        """)
+        header.setFixedHeight(56)
+        header.setStyleSheet(T.topbar())
         hbl = QHBoxLayout(header)
-        hbl.setContentsMargins(28, 0, 28, 0)
-        hbl.setSpacing(14)
+        hbl.setContentsMargins(20, 0, 20, 0)
+        hbl.setSpacing(0)
 
         back_btn = QPushButton("← Back")
         back_btn.setCursor(Qt.PointingHandCursor)
-        back_btn.setFixedHeight(32)
-        back_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent; color: {T.TEXT_SEC};
-                border: 1px solid {T.BORDER}; border-radius: 5px;
-                font-size: 12px; font-weight: 600; padding: 0 14px;
-            }}
-            QPushButton:hover {{ background: {T.BG}; color: {T.TEXT}; }}
-        """)
+        back_btn.setFixedHeight(30)
+        back_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {T.TEXT_SEC}; "
+            f"border: 1px solid {T.BORDER_SOLID}; border-radius: {T.RADIUS_SM}; "
+            f"font-size: 12px; font-weight: 600; padding: 0 12px; }}"
+            f"QPushButton:hover {{ background: {T.BG}; color: {T.TEXT}; }}"
+        )
         back_btn.clicked.connect(self.go_back)
 
-        drawing_name = QLabel(self.drawing["name"])
-        drawing_name.setStyleSheet(f"font-size: 15px; font-weight: 700; color: {T.TEXT}; background: transparent;")
+        sep_v = QFrame()
+        sep_v.setFixedSize(1, 18)
+        sep_v.setStyleSheet(f"background: {T.BORDER_SOLID}; border: none;")
 
-        sep = QLabel("·")
-        sep.setStyleSheet(f"color: {T.TEXT_HINT}; background: transparent;")
+        drawing_name = QLabel(self.drawing["name"])
+        drawing_name.setStyleSheet(
+            f"font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent;"
+        )
+
+        sep2 = QLabel("·")
+        sep2.setStyleSheet(f"color: {T.TEXT_HINT}; background: transparent; margin: 0 6px;")
 
         proj_lbl = QLabel(f"{project['name']}  /  {project['client_name']}")
-        proj_lbl.setStyleSheet(f"font-size: 13px; color: {T.TEXT_SEC}; background: transparent;")
+        proj_lbl.setStyleSheet(
+            f"font-size: 12px; color: {T.TEXT_SEC}; background: transparent;"
+        )
 
-        # Status badge in header
         status     = self.drawing["status"]
         status_txt = self._status_label(status)
         fg, bg     = T.STATUS_COLORS.get(status, (T.TEXT_SEC, T.BG))
         status_badge = QLabel(status_txt)
-        status_badge.setStyleSheet(f"""
-            QLabel {{
-                background: {bg}; color: {fg};
-                border-radius: 4px; padding: 4px 12px;
-                font-size: 11px; font-weight: 700;
-            }}
-        """)
+        status_badge.setStyleSheet(
+            f"QLabel {{ background: {bg}; color: {fg}; border-radius: 4px; "
+            f"padding: 2px 8px; font-size: 10px; font-weight: 700; }}"
+        )
 
         hbl.addWidget(back_btn)
-        hbl.addSpacing(4)
+        hbl.addSpacing(12)
+        hbl.addWidget(sep_v)
+        hbl.addSpacing(12)
         hbl.addWidget(drawing_name)
-        hbl.addWidget(sep)
+        hbl.addWidget(sep2)
         hbl.addWidget(proj_lbl)
         hbl.addStretch()
         hbl.addWidget(status_badge)
         self._root_layout.addWidget(header)
 
-        # ── Two-column scroll content ─────────────────────────────────────────
+        # ── Two-panel body ─────────────────────────────────────────────────────
+        body = QWidget()
+        body.setStyleSheet(f"QWidget {{ background: {T.BG}; }}")
+        body_layout = QHBoxLayout(body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(0)
+
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setStyleSheet(f"QScrollArea {{ border: none; background: {T.BG}; }}")
 
         content = QWidget()
         content.setStyleSheet(f"QWidget {{ background: {T.BG}; }}")
-        cl = QHBoxLayout(content)
-        cl.setContentsMargins(32, 28, 32, 28)
-        cl.setSpacing(20)
+        cl = QVBoxLayout(content)
+        cl.setContentsMargins(28, 24, 28, 28)
+        cl.setSpacing(16)
 
         # ── LEFT: drawing card ────────────────────────────────────────────────
         left_card = QFrame()
         left_card.setStyleSheet(T.card())
-        left_card.setMinimumWidth(480)
         self.card_layout = QVBoxLayout(left_card)
-        self.card_layout.setContentsMargins(28, 28, 28, 28)
-        self.card_layout.setSpacing(20)
+        self.card_layout.setContentsMargins(24, 24, 24, 24)
+        self.card_layout.setSpacing(16)
         self.build_card_content()
 
         # ── RIGHT: notes ──────────────────────────────────────────────────────
         right_card = QFrame()
-        right_card.setStyleSheet(T.card())
-        right_card.setMinimumWidth(340)
-        right_card.setMaximumWidth(460)
+        right_card.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-left: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        right_card.setFixedWidth(320)
         notes_layout = QVBoxLayout(right_card)
-        notes_layout.setContentsMargins(28, 28, 28, 28)
-        notes_layout.setSpacing(14)
+        notes_layout.setContentsMargins(0, 0, 0, 0)
+        notes_layout.setSpacing(0)
 
+        notes_hdr = QFrame()
+        notes_hdr.setFixedHeight(48)
+        notes_hdr.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        nh = QHBoxLayout(notes_hdr)
+        nh.setContentsMargins(16, 0, 16, 0)
         notes_title = QLabel("Notes")
-        notes_title.setStyleSheet(f"font-size: 15px; font-weight: 700; color: {T.TEXT}; background: transparent;")
-        notes_layout.addWidget(notes_title)
+        notes_title.setStyleSheet(
+            f"QLabel {{ font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
+        )
+        nh.addWidget(notes_title)
+        notes_layout.addWidget(notes_hdr)
+
+        notes_form = QFrame()
+        notes_form.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        nf = QVBoxLayout(notes_form)
+        nf.setContentsMargins(12, 12, 12, 12)
+        nf.setSpacing(8)
 
         if self.current_user:
             self.note_input = QTextEdit()
-            self.note_input.setPlaceholderText("Add a note about this project…")
-            self.note_input.setMaximumHeight(90)
-            self.note_input.setStyleSheet(f"""
-                QTextEdit {{
-                    border: 1.5px solid {T.BORDER}; border-radius: {T.RADIUS_SM};
-                    padding: 10px; font-size: 13px; background: {T.BG}; color: {T.TEXT};
-                }}
-                QTextEdit:focus {{ border-color: {T.ACCENT}; background: {T.SURFACE}; }}
-            """)
-            notes_layout.addWidget(self.note_input)
+            self.note_input.setPlaceholderText("Add a note…")
+            self.note_input.setMaximumHeight(80)
+            self.note_input.setStyleSheet(T.input_field_flat())
+            nf.addWidget(self.note_input)
 
             add_note_btn = QPushButton("Add Note")
             add_note_btn.setCursor(Qt.PointingHandCursor)
-            add_note_btn.setMinimumHeight(36)
+            add_note_btn.setMinimumHeight(34)
             add_note_btn.setStyleSheet(T.btn_primary())
             add_note_btn.clicked.connect(self.add_note)
-            notes_layout.addWidget(add_note_btn)
+            nf.addWidget(add_note_btn)
+        notes_layout.addWidget(notes_form)
 
         # Notes scroll area
         notes_scroll = QScrollArea()
@@ -309,17 +329,13 @@ class DrawingDetail(QWidget):
             self.card_layout.addWidget(steps_lbl)
 
             self.step_list = QListWidget()
-            self.step_list.setStyleSheet(f"""
-                QListWidget {{
-                    border: 1px solid {T.BORDER}; border-radius: {T.RADIUS_SM};
-                    background: {T.BG}; outline: none; padding: 6px;
-                }}
-                QListWidget::item {{
-                    padding: 10px 12px; border: none; border-radius: 5px;
-                    margin-bottom: 3px; background: {T.SURFACE}; color: {T.TEXT};
-                }}
-                QListWidget::item:hover {{ background: {T.BG}; }}
-            """)
+            self.step_list.setStyleSheet(
+                f"QListWidget {{ border: 1px solid {T.BORDER_SOLID}; border-radius: {T.RADIUS_SM}; "
+                f"background: {T.BG}; outline: none; padding: 6px; }}"
+                f"QListWidget::item {{ padding: 10px 12px; border: none; border-radius: 5px; "
+                f"margin-bottom: 3px; background: {T.SURFACE}; color: {T.TEXT}; }}"
+                f"QListWidget::item:hover {{ background: {T.BG}; }}"
+            )
 
             for step_id, step in sub_steps.items():
                 item = QListWidgetItem(step["name"])

@@ -1,102 +1,113 @@
 """
 Modern Dialog Utilities — SOT Design System
+Matches the React Modal / AlertModal component patterns.
 """
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton, QHBoxLayout, QFrame
+from PySide6.QtWidgets import (
+    QDialog, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame
+)
 from PySide6.QtCore import Qt
 import utils.theme as T
 
 
 class ModernMessageBox:
+
     @staticmethod
-    def _dialog(parent, title: str, message: str, accent: str, buttons=None) -> QDialog:
+    def _dialog(parent, title: str, message: str, accent: str,
+                buttons=None) -> QDialog:
         dialog = QDialog(parent)
         dialog.setWindowTitle(title)
         dialog.setModal(True)
         dialog.setMinimumWidth(400)
-        dialog.setStyleSheet(f"""
-            QDialog {{ background: {T.SURFACE}; }}
-            QLabel  {{ background: transparent; }}
-        """)
+        dialog.setMaximumWidth(520)
+        dialog.setStyleSheet(
+            f"QDialog {{ background: {T.SURFACE}; border-radius: {T.RADIUS_LG}; }}"
+            f"QLabel  {{ background: transparent; }}"
+        )
 
-        layout = QVBoxLayout(dialog)
-        layout.setSpacing(16)
-        layout.setContentsMargins(32, 32, 32, 32)
+        outer = QHBoxLayout(dialog)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
 
-        # Title row with accent bar
-        title_row = QHBoxLayout()
+        # Left accent bar
         bar = QFrame()
-        bar.setFixedWidth(4)
-        bar.setFixedHeight(24)
-        bar.setStyleSheet(f"background: {accent}; border-radius: 2px; border: none;")
-        title_row.addWidget(bar)
-        title_row.addSpacing(10)
+        bar.setFixedWidth(5)
+        bar.setStyleSheet(f"background: {accent}; border: none;")
+        outer.addWidget(bar)
+
+        inner = QVBoxLayout()
+        inner.setContentsMargins(24, 24, 24, 24)
+        inner.setSpacing(10)
+
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet(f"font-size: 16px; font-weight: 700; color: {T.TEXT};")
-        title_row.addWidget(title_lbl)
-        title_row.addStretch()
-        layout.addLayout(title_row)
+        title_lbl.setStyleSheet(
+            f"QLabel {{ font-size: 15px; font-weight: 600; color: {T.TEXT}; }}"
+        )
+        inner.addWidget(title_lbl)
 
-        # Divider
-        div = QFrame(); div.setFrameShape(QFrame.HLine)
-        div.setStyleSheet(f"background: {T.BORDER}; max-height: 1px;")
-        layout.addWidget(div)
-
-        # Message
         msg_lbl = QLabel(message)
         msg_lbl.setWordWrap(True)
-        msg_lbl.setStyleSheet(f"font-size: 13px; color: {T.TEXT_SEC}; line-height: 1.6;")
-        layout.addWidget(msg_lbl)
+        msg_lbl.setStyleSheet(
+            f"QLabel {{ font-size: 13px; color: {T.TEXT_SEC}; line-height: 1.6; }}"
+        )
+        inner.addWidget(msg_lbl)
 
-        # Buttons
         if buttons:
+            inner.addSpacing(8)
             btn_row = QHBoxLayout()
-            btn_row.setSpacing(10)
+            btn_row.setSpacing(8)
             btn_row.addStretch()
             for btn_text, btn_role, btn_color in buttons:
                 btn = QPushButton(btn_text)
                 btn.setCursor(Qt.PointingHandCursor)
-                btn.setMinimumHeight(38)
-                btn.setMinimumWidth(90)
+                btn.setMinimumHeight(36)
+                btn.setMinimumWidth(80)
                 if btn_role == "primary":
-                    btn.setStyleSheet(f"""
-                        QPushButton {{
-                            background: {btn_color}; color: white; border: none;
-                            border-radius: {T.RADIUS_SM}; padding: 0 20px;
-                            font-size: 13px; font-weight: 600;
-                        }}
-                        QPushButton:hover {{ background: {btn_color}cc; }}
-                    """)
+                    btn.setStyleSheet(
+                        f"QPushButton {{ background: {btn_color}; color: white; border: none; "
+                        f"border-radius: {T.RADIUS_SM}; padding: 0 18px; "
+                        f"font-size: 13px; font-weight: 600; }}"
+                        f"QPushButton:hover {{ background: {btn_color}CC; }}"
+                    )
                     btn.clicked.connect(dialog.accept)
                 else:
                     btn.setStyleSheet(T.btn_secondary())
                     btn.clicked.connect(dialog.reject)
                 btn_row.addWidget(btn)
-            layout.addLayout(btn_row)
+            inner.addLayout(btn_row)
 
+        outer.addLayout(inner)
         return dialog
 
     @staticmethod
     def information(parent, title, message):
-        d = ModernMessageBox._dialog(parent, title, message, T.ACCENT,
-                                     [("OK", "primary", T.ACCENT)])
+        d = ModernMessageBox._dialog(
+            parent, title, message, T.ACCENT,
+            [("OK", "primary", T.ACCENT)]
+        )
         d.exec()
 
     @staticmethod
     def success(parent, title, message):
-        d = ModernMessageBox._dialog(parent, title, message, T.SUCCESS,
-                                     [("OK", "primary", T.SUCCESS)])
+        d = ModernMessageBox._dialog(
+            parent, title, message, T.TEAL,
+            [("OK", "primary", T.TEAL)]
+        )
         d.exec()
 
     @staticmethod
     def warning(parent, title, message):
-        d = ModernMessageBox._dialog(parent, title, message, T.WARNING,
-                                     [("OK", "primary", T.WARNING)])
+        d = ModernMessageBox._dialog(
+            parent, title, message, T.WARNING,
+            [("OK", "primary", T.WARNING)]
+        )
         d.exec()
 
     @staticmethod
     def error(parent, title, message):
-        d = ModernMessageBox._dialog(parent, title, message, T.DANGER,
-                                     [("OK", "primary", T.DANGER)])
+        d = ModernMessageBox._dialog(
+            parent, title, message, T.DANGER,
+            [("OK", "primary", T.DANGER)]
+        )
         d.exec()
 
     @staticmethod

@@ -5,12 +5,98 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt, Signal, QDate
 from services.firebase_client import FirebaseClient
-from ui.admin_projects import AdminProjects
-from ui.admin_review import AdminReview
-from ui.admin_template import AdminTemplate
-from ui.superadmin_users import SuperAdminUsers
 import utils.theme as T
 from datetime import datetime
+
+
+# ── Shared top-bar builder (reused by all dashboard screens) ──────────────────
+def make_topbar(parent_widget, user, on_logout, show_back=False, back_title=""):
+    """Returns a (topbar_frame, back_btn_or_None) tuple."""
+    bar = QFrame()
+    bar.setFixedHeight(56)
+    bar.setStyleSheet(T.topbar())
+
+    h = QHBoxLayout(bar)
+    h.setContentsMargins(24, 0, 24, 0)
+    h.setSpacing(0)
+
+    back_btn = None
+    if show_back:
+        back_btn = QPushButton("← Back")
+        back_btn.setCursor(Qt.PointingHandCursor)
+        back_btn.setFixedHeight(30)
+        back_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {T.TEXT_SEC}; "
+            f"border: 1px solid {T.BORDER_SOLID}; border-radius: {T.RADIUS_SM}; "
+            f"font-size: 12px; font-weight: 600; padding: 0 12px; }}"
+            f"QPushButton:hover {{ background: {T.BG}; color: {T.TEXT}; }}"
+        )
+        h.addWidget(back_btn)
+
+        sep = QFrame()
+        sep.setFixedSize(1, 20)
+        sep.setStyleSheet(f"background: {T.BORDER_SOLID}; border: none;")
+        h.addSpacing(12)
+        h.addWidget(sep)
+        h.addSpacing(12)
+
+        title_lbl = QLabel(back_title)
+        title_lbl.setStyleSheet(
+            f"QLabel {{ font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
+        )
+        h.addWidget(title_lbl)
+        h.addStretch()
+    else:
+        brand = QLabel("SOT")
+        brand.setStyleSheet(
+            f"QLabel {{ font-size: 15px; font-weight: 800; color: {T.TEXT}; "
+            f"letter-spacing: -0.5px; background: transparent; }}"
+        )
+        sep = QFrame()
+        sep.setFixedSize(1, 18)
+        sep.setStyleSheet(f"background: {T.BORDER_SOLID}; border: none;")
+
+        hour = datetime.now().hour
+        greet = "Good morning" if hour < 12 else ("Good afternoon" if hour < 17 else "Good evening")
+        first = user.get("username", "").split()[0] if user else ""
+        greeting_lbl = QLabel(f"{greet}, {first}")
+        greeting_lbl.setStyleSheet(
+            f"QLabel {{ font-size: 13px; color: {T.TEXT_SEC}; background: transparent; }}"
+        )
+
+        h.addWidget(brand)
+        h.addSpacing(12)
+        h.addWidget(sep)
+        h.addSpacing(12)
+        h.addWidget(greeting_lbl)
+        h.addStretch()
+
+    # Role badge
+    if user:
+        role = user.get("role", "employee")
+        fg, bg = T.ROLE_COLORS.get(role, (T.TEXT_SEC, T.BG))
+        role_lbl = QLabel(role.replace("_", " ").title())
+        role_lbl.setStyleSheet(
+            f"QLabel {{ background: {bg}; color: {fg}; border-radius: 4px; "
+            f"padding: 2px 8px; font-size: 10px; font-weight: 700; }}"
+        )
+        h.addWidget(role_lbl)
+        h.addSpacing(14)
+
+    if on_logout:
+        logout_btn = QPushButton("Sign out")
+        logout_btn.setCursor(Qt.PointingHandCursor)
+        logout_btn.setFixedHeight(30)
+        logout_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; color: {T.TEXT_SEC}; "
+            f"border: 1px solid {T.BORDER_SOLID}; border-radius: {T.RADIUS_SM}; "
+            f"font-size: 12px; font-weight: 600; padding: 0 12px; }}"
+            f"QPushButton:hover {{ background: {T.BG}; color: {T.TEXT}; }}"
+        )
+        logout_btn.clicked.connect(on_logout)
+        h.addWidget(logout_btn)
+
+    return bar, back_btn
 
 
 # ── Date Range Dialog ─────────────────────────────────────────────────────────
@@ -19,83 +105,87 @@ class DateRangeDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Generate Report")
         self.setModal(True)
-        self.setMinimumWidth(460)
-        self.setStyleSheet(f"QDialog {{ background: {T.SURFACE}; }} QLabel {{ background: transparent; }}")
+        self.setMinimumWidth(440)
+        self.setStyleSheet(
+            f"QDialog {{ background: {T.SURFACE}; }} "
+            f"QLabel {{ background: transparent; }}"
+        )
 
         layout = QVBoxLayout(self)
-        layout.setSpacing(16)
+        layout.setSpacing(14)
         layout.setContentsMargins(32, 32, 32, 32)
 
         title = QLabel("Employee Performance Report")
-        title.setStyleSheet(f"font-size: 18px; font-weight: 700; color: {T.TEXT};")
+        title.setStyleSheet(
+            f"font-size: 17px; font-weight: 600; color: {T.TEXT};"
+        )
         desc = QLabel("Choose a date range or use all available data.")
         desc.setStyleSheet(f"font-size: 13px; color: {T.TEXT_SEC};")
 
         layout.addWidget(title)
         layout.addWidget(desc)
 
-        div = QFrame(); div.setFrameShape(QFrame.HLine)
-        div.setStyleSheet(f"background: {T.BORDER}; max-height: 1px;")
+        div = QFrame()
+        div.setFixedHeight(1)
+        div.setStyleSheet(f"background: {T.BORDER_SOLID}; border: none;")
         layout.addWidget(div)
 
         self.all_time_checkbox = QCheckBox("Use all available data (ignore date range)")
-        self.all_time_checkbox.setStyleSheet(f"""
-            QCheckBox {{ font-size: 13px; color: {T.TEXT}; spacing: 8px; }}
-            QCheckBox::indicator {{ width: 18px; height: 18px; border: 1.5px solid {T.BORDER_MED}; border-radius: 4px; background: {T.SURFACE}; }}
-            QCheckBox::indicator:checked {{ background: {T.ACCENT}; border-color: {T.ACCENT}; }}
-        """)
+        self.all_time_checkbox.setStyleSheet(
+            f"QCheckBox {{ font-size: 13px; color: {T.TEXT}; spacing: 8px; }}"
+            f"QCheckBox::indicator {{ width: 16px; height: 16px; border: 1px solid {T.BORDER_SOLID}; "
+            f"border-radius: 4px; background: {T.SURFACE}; }}"
+            f"QCheckBox::indicator:checked {{ background: {T.ACCENT}; border-color: {T.ACCENT}; }}"
+        )
         self.all_time_checkbox.toggled.connect(self.toggle_date_inputs)
         layout.addWidget(self.all_time_checkbox)
 
         self.date_container = QFrame()
         date_layout = QVBoxLayout(self.date_container)
-        date_layout.setSpacing(12)
+        date_layout.setSpacing(10)
         date_layout.setContentsMargins(0, 0, 0, 0)
 
+        lbl_style = f"font-size: 11px; font-weight: 600; color: {T.TEXT_SEC}; letter-spacing: 0.4px;"
+        date_style = (
+            f"QDateEdit {{ padding: 8px 12px; border: 1px solid {T.BORDER_SOLID}; "
+            f"border-radius: {T.RADIUS_SM}; font-size: 13px; "
+            f"background: {T.SURFACE}; color: {T.TEXT}; }}"
+            f"QDateEdit:focus {{ border-color: {T.ACCENT}; }}"
+            f"QDateEdit::drop-down {{ border: none; width: 26px; }}"
+            f"QDateEdit::down-arrow {{ border-left: 4px solid transparent; "
+            f"border-right: 4px solid transparent; border-top: 5px solid {T.TEXT_SEC}; "
+            f"margin-right: 8px; }}"
+        )
         for label_text, attr in [("Start Date", "start_date"), ("End Date", "end_date")]:
             lbl = QLabel(label_text)
-            lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {T.TEXT_SEC};")
-            date_edit = QDateEdit()
-            date_edit.setCalendarPopup(True)
-            date_edit.setDisplayFormat("MMMM dd, yyyy")
-            date_edit.setStyleSheet(f"""
-                QDateEdit {{
-                    padding: 9px 12px; border: 1.5px solid {T.BORDER};
-                    border-radius: {T.RADIUS_SM}; font-size: 13px;
-                    background: {T.SURFACE}; color: {T.TEXT};
-                }}
-                QDateEdit:focus {{ border-color: {T.ACCENT}; }}
-                QDateEdit::drop-down {{ border: none; width: 28px; }}
-                QDateEdit::down-arrow {{
-                    border-left: 4px solid transparent; border-right: 4px solid transparent;
-                    border-top: 5px solid {T.TEXT_SEC}; margin-right: 8px;
-                }}
-            """)
-            setattr(self, attr, date_edit)
+            lbl.setStyleSheet(lbl_style)
+            de = QDateEdit()
+            de.setCalendarPopup(True)
+            de.setDisplayFormat("MMMM dd, yyyy")
+            de.setStyleSheet(date_style)
+            setattr(self, attr, de)
             date_layout.addWidget(lbl)
-            date_layout.addWidget(date_edit)
+            date_layout.addWidget(de)
 
         self.start_date.setDate(QDate.currentDate().addMonths(-1))
         self.end_date.setDate(QDate.currentDate())
         layout.addWidget(self.date_container)
 
-        # Quick range buttons
+        # Quick range chips
         quick_row = QHBoxLayout()
-        quick_row.setSpacing(8)
+        quick_row.setSpacing(6)
         ql = QLabel("Quick:")
         ql.setStyleSheet(f"font-size: 12px; color: {T.TEXT_SEC};")
         quick_row.addWidget(ql)
-        chip_style = f"""
-            QPushButton {{
-                background: {T.BG}; border: 1px solid {T.BORDER};
-                border-radius: 4px; padding: 4px 10px;
-                font-size: 11px; color: {T.TEXT_SEC}; font-weight: 600;
-            }}
-            QPushButton:hover {{ background: {T.BORDER}; color: {T.TEXT}; }}
-        """
+        chip = (
+            f"QPushButton {{ background: {T.BG}; border: 1px solid {T.BORDER_SOLID}; "
+            f"border-radius: 4px; padding: 3px 10px; font-size: 11px; "
+            f"color: {T.TEXT_SEC}; font-weight: 600; }}"
+            f"QPushButton:hover {{ background: {T.BORDER_SOLID}; color: {T.TEXT}; }}"
+        )
         for label, days in [("7 days", 7), ("30 days", 30), ("This month", 0)]:
             btn = QPushButton(label)
-            btn.setStyleSheet(chip_style)
+            btn.setStyleSheet(chip)
             btn.setCursor(Qt.PointingHandCursor)
             if days:
                 btn.clicked.connect(lambda _, d=days: self.set_quick_range(d))
@@ -105,13 +195,18 @@ class DateRangeDialog(QDialog):
         quick_row.addStretch()
         layout.addLayout(quick_row)
 
-        # Buttons
         btn_row = QHBoxLayout()
         btn_row.setSpacing(10)
-        cancel = QPushButton("Cancel"); cancel.setStyleSheet(T.btn_secondary()); cancel.setCursor(Qt.PointingHandCursor)
-        cancel.setMinimumHeight(38); cancel.clicked.connect(self.reject)
-        generate = QPushButton("Generate Report"); generate.setStyleSheet(T.btn_primary()); generate.setCursor(Qt.PointingHandCursor)
-        generate.setMinimumHeight(38); generate.clicked.connect(self.accept)
+        cancel = QPushButton("Cancel")
+        cancel.setStyleSheet(T.btn_secondary())
+        cancel.setCursor(Qt.PointingHandCursor)
+        cancel.setMinimumHeight(38)
+        cancel.clicked.connect(self.reject)
+        generate = QPushButton("Generate Report")
+        generate.setStyleSheet(T.btn_primary())
+        generate.setCursor(Qt.PointingHandCursor)
+        generate.setMinimumHeight(38)
+        generate.clicked.connect(self.accept)
         btn_row.addStretch()
         btn_row.addWidget(cancel)
         btn_row.addWidget(generate)
@@ -136,7 +231,7 @@ class DateRangeDialog(QDialog):
             return None, None
         return (
             self.start_date.date().toString("yyyy-MM-dd"),
-            self.end_date.date().toString("yyyy-MM-dd")
+            self.end_date.date().toString("yyyy-MM-dd"),
         )
 
 
@@ -144,53 +239,46 @@ class DateRangeDialog(QDialog):
 class NavCard(QFrame):
     clicked = Signal()
 
-    def __init__(self, icon_text, title, description, accent_color, parent=None):
+    def __init__(self, abbr, title, description, accent_color, parent=None):
         super().__init__(parent)
         self.accent_color = accent_color
         self.setCursor(Qt.PointingHandCursor)
-        self._normal_style = f"""
-            QFrame {{
-                background: {T.SURFACE};
-                border: 1px solid {T.BORDER};
-                border-radius: {T.RADIUS};
-            }}
-        """
-        self._hover_style = f"""
-            QFrame {{
-                background: {T.SURFACE};
-                border: 1px solid {T.BORDER_MED};
-                border-radius: {T.RADIUS};
-            }}
-        """
-        self.setStyleSheet(self._normal_style)
-        self.setFixedHeight(140)
+        self._normal = (
+            f"QFrame {{ background: {T.SURFACE}; border: 1px solid {T.BORDER_SOLID}; "
+            f"border-radius: {T.RADIUS}; }}"
+        )
+        self._hover = (
+            f"QFrame {{ background: {T.SURFACE}; border: 1px solid #C0C0C8; "
+            f"border-radius: {T.RADIUS}; }}"
+        )
+        self.setStyleSheet(self._normal)
+        self.setFixedHeight(148)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(22, 20, 22, 20)
+        layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(8)
 
-        # Icon bubble
-        icon_bubble = QLabel(icon_text)
-        icon_bubble.setFixedSize(38, 38)
-        icon_bubble.setAlignment(Qt.AlignCenter)
-        icon_bubble.setStyleSheet(f"""
-            QLabel {{
-                background: {accent_color}18;
-                color: {accent_color};
-                border-radius: 9px;
-                font-size: 16px;
-                font-weight: 700;
-            }}
-        """)
+        # Abbr bubble
+        bubble = QLabel(abbr)
+        bubble.setFixedSize(36, 36)
+        bubble.setAlignment(Qt.AlignCenter)
+        bubble.setStyleSheet(
+            f"QLabel {{ background: {accent_color}1A; color: {accent_color}; "
+            f"border-radius: 8px; font-size: 13px; font-weight: 700; }}"
+        )
 
         title_lbl = QLabel(title)
-        title_lbl.setStyleSheet(f"QLabel {{ font-size: 14px; font-weight: 700; color: {T.TEXT}; background: transparent; }}")
+        title_lbl.setStyleSheet(
+            f"QLabel {{ font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
+        )
 
         desc_lbl = QLabel(description)
-        desc_lbl.setStyleSheet(f"QLabel {{ font-size: 12px; color: {T.TEXT_SEC}; background: transparent; }}")
+        desc_lbl.setStyleSheet(
+            f"QLabel {{ font-size: 11px; color: {T.TEXT_SEC}; background: transparent; }}"
+        )
         desc_lbl.setWordWrap(True)
 
-        layout.addWidget(icon_bubble)
+        layout.addWidget(bubble)
         layout.addWidget(title_lbl)
         layout.addWidget(desc_lbl)
         layout.addStretch()
@@ -201,11 +289,11 @@ class NavCard(QFrame):
         super().mousePressEvent(event)
 
     def enterEvent(self, event):
-        self.setStyleSheet(self._hover_style)
+        self.setStyleSheet(self._hover)
         super().enterEvent(event)
 
     def leaveEvent(self, event):
-        self.setStyleSheet(self._normal_style)
+        self.setStyleSheet(self._normal)
         super().leaveEvent(event)
 
 
@@ -215,117 +303,69 @@ class AdminDashboard(QWidget):
         super().__init__()
         self.user      = user
         self.on_logout = on_logout
-
         self.setStyleSheet(T.app_base())
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
         main_layout.setSpacing(0)
 
-        # ── Top bar ───────────────────────────────────────────────────────────
-        top_bar = QFrame()
-        top_bar.setFixedHeight(64)
-        top_bar.setStyleSheet(f"""
-            QFrame {{
-                background: {T.SURFACE};
-                border: none;
-                border-bottom: 1px solid {T.BORDER};
-            }}
-        """)
-        tb = QHBoxLayout(top_bar)
-        tb.setContentsMargins(32, 0, 32, 0)
+        topbar, _ = make_topbar(self, user, self._handle_logout)
+        main_layout.addWidget(topbar)
 
-        brand = QLabel("SOT")
-        brand.setStyleSheet(f"QLabel {{ font-size: 18px; font-weight: 800; color: {T.ACCENT}; background: transparent; }}")
-
-        sep = QFrame(); sep.setFixedSize(1, 24)
-        sep.setStyleSheet(f"background: {T.BORDER}; border: none;")
-
-        greeting = self._greeting()
-        page_title = QLabel(f"{greeting}, {user['username']}")
-        page_title.setStyleSheet(f"QLabel {{ font-size: 14px; color: {T.TEXT_SEC}; background: transparent; }}")
-
-        tb.addWidget(brand)
-        tb.addWidget(sep)
-        tb.addSpacing(12)
-        tb.addWidget(page_title)
-        tb.addStretch()
-
-        # Role pill
-        role = user.get("role", "employee")
-        fg, bg = T.ROLE_COLORS.get(role, (T.TEXT_SEC, T.BG))
-        role_pill = QLabel(role.replace("_", " ").title())
-        role_pill.setStyleSheet(f"""
-            QLabel {{
-                background: {bg}; color: {fg};
-                border-radius: 4px; padding: 3px 10px;
-                font-size: 11px; font-weight: 700;
-            }}
-        """)
-        tb.addWidget(role_pill)
-        tb.addSpacing(16)
-
-        logout_btn = QPushButton("Sign out")
-        logout_btn.setCursor(Qt.PointingHandCursor)
-        logout_btn.setFixedHeight(32)
-        logout_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent; color: {T.TEXT_SEC};
-                border: 1px solid {T.BORDER}; border-radius: 5px;
-                font-size: 12px; font-weight: 600; padding: 0 14px;
-            }}
-            QPushButton:hover {{ background: {T.BG}; color: {T.TEXT}; }}
-        """)
-        logout_btn.clicked.connect(self.handle_logout)
-        tb.addWidget(logout_btn)
-        main_layout.addWidget(top_bar)
-
-        # ── Scrollable content ────────────────────────────────────────────────
+        # Scrollable content
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(f"QScrollArea {{ border: none; background: {T.BG}; }}")
+        scroll.setStyleSheet(
+            f"QScrollArea {{ border: none; background: {T.BG}; }}"
+        )
 
         content = QWidget()
         content.setStyleSheet(f"QWidget {{ background: {T.BG}; }}")
         cl = QVBoxLayout(content)
-        cl.setContentsMargins(40, 36, 40, 40)
-        cl.setSpacing(28)
+        cl.setContentsMargins(40, 32, 40, 40)
+        cl.setSpacing(24)
 
-        # Section heading
-        heading_row = QHBoxLayout()
+        # Heading
         heading = QLabel("Dashboard")
-        heading.setStyleSheet(f"QLabel {{ font-size: 22px; font-weight: 700; color: {T.TEXT}; background: transparent; }}")
-        sub = QLabel("Select a section to get started")
-        sub.setStyleSheet(f"QLabel {{ font-size: 13px; color: {T.TEXT_SEC}; background: transparent; }}")
-        heading_row.addWidget(heading)
-        heading_row.addStretch()
-        cl.addLayout(heading_row)
+        heading.setStyleSheet(
+            f"QLabel {{ font-size: 20px; font-weight: 600; color: {T.TEXT}; "
+            f"background: transparent; letter-spacing: -0.3px; }}"
+        )
+        sub = QLabel("Select a section to get started.")
+        sub.setStyleSheet(
+            f"QLabel {{ font-size: 13px; color: {T.TEXT_SEC}; background: transparent; }}"
+        )
+        cl.addWidget(heading)
         cl.addWidget(sub)
 
-        # ── Navigation cards ──────────────────────────────────────────────────
+        # Section label
         section_lbl = QLabel("MANAGEMENT")
-        section_lbl.setStyleSheet(f"QLabel {{ font-size: 11px; font-weight: 700; color: {T.TEXT_HINT}; background: transparent; letter-spacing: 1px; }}")
+        section_lbl.setStyleSheet(
+            f"QLabel {{ font-size: 10px; font-weight: 700; color: {T.TEXT_HINT}; "
+            f"background: transparent; letter-spacing: 1.5px; }}"
+        )
         cl.addWidget(section_lbl)
 
+        # Cards grid
         grid = QGridLayout()
-        grid.setSpacing(16)
+        grid.setSpacing(12)
 
         cards = [
-            ("P", "Projects",       "Create, assign and manage all projects",       T.ACCENT,   self.open_projects),
-            ("R", "Review Drawings","Approve or reject submitted drawings",          "#7C3AED",  self.open_review),
-            ("E", "Employee Report","Download login/logout & hours report",          T.SUCCESS,  self.download_employee_report),
-            ("S", "Project Report", "Status overview with payment tracking",         "#0891B2",  self.download_project_report),
+            ("PR", "Projects",        "Create, assign and manage all projects",       T.ACCENT,   self.open_projects),
+            ("RD", "Review Drawings", "Approve or reject submitted drawings",          "#6D28D9",  self.open_review),
+            ("ER", "Employee Report", "Download login/logout & hours report",          "#16A34A",  self.download_employee_report),
+            ("PR", "Project Report",  "Status overview with payment tracking",         "#0F766E",  self.download_project_report),
         ]
 
         if self.user["role"] == "super_admin":
             cards += [
-                ("U", "Users",        "Create and manage user accounts",            "#D97706",  self.open_users),
-                ("T", "Template",     "Edit the default drawing template",          "#DC2626",  self.open_template),
+                ("US", "Users",    "Create and manage user accounts",      "#D97706", self.open_users),
+                ("TM", "Template", "Edit the default drawing template",    "#D4183D", self.open_template),
             ]
 
         cols = 3
-        for i, (icon, title, desc, color, fn) in enumerate(cards):
-            card = NavCard(icon, title, desc, color)
+        for i, (abbr, title, desc, color, fn) in enumerate(cards):
+            card = NavCard(abbr, title, desc, color)
             card.clicked.connect(fn)
             grid.addWidget(card, i // cols, i % cols)
 
@@ -335,18 +375,8 @@ class AdminDashboard(QWidget):
         scroll.setWidget(content)
         main_layout.addWidget(scroll)
 
-        # Hidden stack kept for compatibility (pages are loaded lazily in MainWindow)
-        self.pages = None
-
     # ── Helpers ───────────────────────────────────────────────────────────────
-    def _greeting(self):
-        hour = datetime.now().hour
-        if hour < 12:  return "Good morning"
-        if hour < 17:  return "Good afternoon"
-        return "Good evening"
-
-    # ── Actions ───────────────────────────────────────────────────────────────
-    def handle_logout(self):
+    def _handle_logout(self):
         fb = FirebaseClient()
         fb.record_logout_time(self.user["user_id"])
         self.on_logout()
@@ -375,8 +405,14 @@ class AdminDashboard(QWidget):
                 start_date, end_date = dialog.get_date_range()
                 from services.employee_performance_report import generate_employee_performance_report
                 file = generate_employee_performance_report(start_date, end_date)
-                date_info = f"\nRange: {start_date} → {end_date}" if (start_date and end_date) else "\nAll time data"
-                ModernMessageBox.success(self, "Report Ready", f"Employee report saved.{date_info}\n\n{file}")
+                date_info = (
+                    f"\nRange: {start_date} → {end_date}"
+                    if (start_date and end_date) else "\nAll time data"
+                )
+                ModernMessageBox.success(
+                    self, "Report Ready",
+                    f"Employee report saved.{date_info}\n\n{file}"
+                )
         except Exception as e:
             ModernMessageBox.error(self, "Error", f"Failed to generate report: {str(e)}")
 
@@ -385,6 +421,9 @@ class AdminDashboard(QWidget):
         try:
             from services.project_status_report import generate_project_status_report
             file = generate_project_status_report()
-            ModernMessageBox.success(self, "Report Ready", f"Project status report saved.\n\n{file}")
+            ModernMessageBox.success(
+                self, "Report Ready",
+                f"Project status report saved.\n\n{file}"
+            )
         except Exception as e:
             ModernMessageBox.error(self, "Error", f"Failed to generate report: {str(e)}")

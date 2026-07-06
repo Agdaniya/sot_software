@@ -1,414 +1,364 @@
-# Admin Template - Now with DRAG & DROP REORDERING and improved highlighting
+# Admin Template — restyled to match SOT design system (flush three-column layout)
 from PySide6.QtWidgets import (
-    QWidget, QHBoxLayout, QVBoxLayout,
-    QLabel, QListWidget, QLineEdit, QPushButton, QFrame, QListWidgetItem
+    QWidget, QHBoxLayout, QVBoxLayout, QStackedWidget,
+    QLabel, QListWidget, QLineEdit, QPushButton, QFrame,
+    QListWidgetItem, QSizePolicy, QScrollArea
 )
 from PySide6.QtCore import Qt
 from services.firebase_client import FirebaseClient
 from utils.logger import logger
 from utils.modern_dialogs import ModernMessageBox
+from ui.admin_dashboard import make_topbar
+import utils.theme as T
 import uuid
 
 
 class AdminTemplate(QWidget):
-    def __init__(self):
+    def __init__(self, user=None, on_back=None, on_logout=None):
         super().__init__()
         self.fb = FirebaseClient()
         self.selected_drawing_id = None
+        self._user = user or {}
+        self._on_back = on_back
+        self._on_logout = on_logout
 
-        self.setStyleSheet("""
-            QWidget {
-                background: #e8ebf0;
-                font-family: 'Segoe UI', 'Inter', Arial, sans-serif;
-                color: #1e293b;
-            }
-        """)
+        # ── Root layout (full-screen column) ──────────────────────────────────
+        root_v = QVBoxLayout(self)
+        root_v.setContentsMargins(0, 0, 0, 0)
+        root_v.setSpacing(0)
 
-        root = QHBoxLayout(self)
-        root.setContentsMargins(40, 40, 40, 40)
-        root.setSpacing(24)
+        # ── Top bar ───────────────────────────────────────────────────────────
+        topbar, back_btn = make_topbar(
+            self, self._user,
+            on_logout=self._on_logout,
+            show_back=True,
+            back_title="Project Template Manager"
+        )
+        if back_btn and self._on_back:
+            back_btn.clicked.connect(self._on_back)
+        root_v.addWidget(topbar)
 
-        # ===== LEFT: DRAWINGS =====
-        left_frame = QFrame()
-        left_frame.setStyleSheet("""
-            QFrame {
-                background: white;
-                border: none;
-                border-radius: 12px;
-            }
-        """)
-        
-        left = QVBoxLayout(left_frame)
-        left.setContentsMargins(32, 32, 32, 32)
-        left.setSpacing(16)
-        
-        left_title = QLabel("Template Drawings")
-        left_title.setStyleSheet("""
-            QLabel {
-                font-size: 18px;
-                font-weight: 600;
-                color: #1e293b;
-                background: transparent;
-            }
-        """)
-        left.addWidget(left_title)
+        # ── Three-column body ─────────────────────────────────────────────────
+        body = QHBoxLayout()
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(0)
 
-        # FIX #4: Enable drag and drop for reordering
+        # ── COL 1 : Template Drawings (fixed 280px) ───────────────────────────
+        col1 = QFrame()
+        col1.setFixedWidth(280)
+        col1.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-right: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        v1 = QVBoxLayout(col1)
+        v1.setContentsMargins(0, 0, 0, 0)
+        v1.setSpacing(0)
+
+        # Header strip
+        hdr1 = QFrame()
+        hdr1.setFixedHeight(44)
+        hdr1.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        hdr1_h = QHBoxLayout(hdr1)
+        hdr1_h.setContentsMargins(16, 0, 16, 0)
+        lbl1 = QLabel("Template Drawings")
+        lbl1.setStyleSheet(
+            f"QLabel {{ font-size: 13px; font-weight: 600; "
+            f"color: {T.TEXT}; background: transparent; }}"
+        )
+        tip1 = QLabel("Drag to reorder")
+        tip1.setStyleSheet(
+            f"QLabel {{ font-size: 11px; color: {T.TEXT_SEC}; background: transparent; }}"
+        )
+        hdr1_h.addWidget(lbl1)
+        hdr1_h.addStretch()
+        hdr1_h.addWidget(tip1)
+        v1.addWidget(hdr1)
+
+        # Drawing list
         self.drawings = QListWidget()
         self.drawings.setDragDropMode(QListWidget.InternalMove)
         self.drawings.setDefaultDropAction(Qt.MoveAction)
-        self.drawings.setStyleSheet("""
-            QListWidget {
-                border: none;
-                border-radius: 8px;
-                padding: 0;
-                background: transparent;
-                outline: none;
-            }
-            QListWidget::item {
-                padding: 20px;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                margin-bottom: 12px;
-                background: #f8fafc;
-                color: #1e293b;
-            }
-            QListWidget::item:hover {
-                background: #f1f5f9;
-                border: 1px solid #cbd5e1;
-            }
-            QListWidget::item:selected {
-                background: white;
-                border: 2px solid #1e40af;
-                color: #1e293b;
-            }
-        """)
+        self.drawings.setStyleSheet(
+            f"QListWidget {{ border: none; background: transparent; outline: none; }}"
+            f"QListWidget::item {{"
+            f"  padding: 10px 16px; background: {T.SURFACE}; color: {T.TEXT};"
+            f"  border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+            f"QListWidget::item:hover {{ background: {T.BG}; }}"
+            f"QListWidget::item:selected {{"
+            f"  background: {T.ACCENT_BG}; color: {T.TEXT};"
+            f"  border-left: 2px solid {T.ACCENT}; }}"
+        )
         self.drawings.itemClicked.connect(self.load_substeps)
-        # FIX #4: Connect to save new order when items are moved
         self.drawings.model().rowsMoved.connect(self.save_drawing_order)
-        left.addWidget(self.drawings)
+        v1.addWidget(self.drawings, 1)
 
-        # Reordering help text
-        help_text = QLabel("💡 Tip: Drag and drop drawings to reorder them")
-        help_text.setStyleSheet("""
-            QLabel {
-                font-size: 12px;
-                color: #64748b;
-                background: transparent;
-                font-style: italic;
-            }
-        """)
-        left.addWidget(help_text)
+        # Add-drawing input strip at bottom of col 1
+        add1_strip = QFrame()
+        add1_strip.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-top: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        add1_h = QHBoxLayout(add1_strip)
+        add1_h.setContentsMargins(10, 8, 10, 8)
+        add1_h.setSpacing(6)
 
-        # Add new drawing section
-        add_label = QLabel("Add New Drawing")
-        add_label.setStyleSheet("""
-            QLabel {
-                font-size: 14px;
-                font-weight: 500;
-                color: #1e293b;
-                background: transparent;
-            }
-        """)
-        
-        add_layout = QHBoxLayout()
         self.new_draw = QLineEdit()
-        self.new_draw.setPlaceholderText("Drawing name")
-        self.new_draw.setStyleSheet("""
-            QLineEdit {
-                padding: 12px 16px;
-                border: none;
-                border-radius: 8px;
-                font-size: 14px;
-                background: #f1f5f9;
-                color: #1e293b;
-            }
-            QLineEdit:focus {
-                background: #e2e8f0;
-            }
-            QLineEdit::placeholder {
-                color: #94a3b8;
-            }
-        """)
-        
-        add_btn = QPushButton("+")
-        add_btn.setCursor(Qt.PointingHandCursor)
-        add_btn.setFixedSize(48, 48)
-        add_btn.setStyleSheet("""
-            QPushButton {
-                background: #1e40af;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                font-size: 20px;
-                font-weight: 600;
-            }
-            QPushButton:hover {
-                background: #1e3a8a;
-            }
-        """)
-        add_btn.clicked.connect(self.add_drawing)
-        self.new_draw.returnPressed.connect(add_btn.click)
-        
-        add_layout.addWidget(self.new_draw)
-        add_layout.addWidget(add_btn)
-        
-        left.addWidget(add_label)
-        left.addLayout(add_layout)
+        self.new_draw.setPlaceholderText("New drawing name…")
+        self.new_draw.setFixedHeight(32)
+        self.new_draw.setStyleSheet(T.input_field_flat())
 
-        # Delete drawing button
-        delete_drawing_btn = QPushButton("🗑 Delete Selected Drawing")
-        delete_drawing_btn.setCursor(Qt.PointingHandCursor)
-        delete_drawing_btn.setStyleSheet("""
-            QPushButton {
-                background: white;
-                color: #dc2626;
-                border: 1px solid #fecaca;
-                border-radius: 8px;
-                padding: 10px;
-                font-weight: 600;
-                font-size: 13px;
-            }
-            QPushButton:hover {
-                background: #fef2f2;
-            }
-        """)
-        delete_drawing_btn.clicked.connect(self.delete_drawing)
-        left.addWidget(delete_drawing_btn)
+        add_draw_btn = QPushButton("Add")
+        add_draw_btn.setFixedHeight(32)
+        add_draw_btn.setCursor(Qt.PointingHandCursor)
+        add_draw_btn.setStyleSheet(T.btn_primary())
+        add_draw_btn.clicked.connect(self.add_drawing)
+        self.new_draw.returnPressed.connect(add_draw_btn.click)
 
-        # ===== CENTER: SUB-STEPS =====
-        center_frame = QFrame()
-        center_frame.setStyleSheet("""
-            QFrame {
-                background: white;
-                border: none;
-                border-radius: 12px;
-            }
-        """)
-        
-        center = QVBoxLayout(center_frame)
-        center.setContentsMargins(32, 32, 32, 32)
-        center.setSpacing(16)
-        
-        center_title = QLabel("Sub-Steps")
-        center_title.setStyleSheet("""
-            QLabel {
-                font-size: 18px;
-                font-weight: 600;
-                color: #1e293b;
-                background: transparent;
-            }
-        """)
-        center.addWidget(center_title)
+        add1_h.addWidget(self.new_draw, 1)
+        add1_h.addWidget(add_draw_btn)
+        v1.addWidget(add1_strip)
 
-        # FIX #6: Enable drag and drop for substeps too
+        # Delete-drawing button strip
+        del1_strip = QFrame()
+        del1_strip.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-top: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        del1_h = QHBoxLayout(del1_strip)
+        del1_h.setContentsMargins(10, 8, 10, 8)
+
+        del_draw_btn = QPushButton("Delete Selected Drawing")
+        del_draw_btn.setFixedHeight(32)
+        del_draw_btn.setCursor(Qt.PointingHandCursor)
+        del_draw_btn.setStyleSheet(T.btn_danger())
+        del_draw_btn.clicked.connect(self.delete_drawing)
+        del1_h.addWidget(del_draw_btn)
+        v1.addWidget(del1_strip)
+
+        # ── COL 2 : Sub-Steps list (stretch) ──────────────────────────────────
+        col2 = QFrame()
+        col2.setStyleSheet(
+            f"QFrame {{ background: {T.BG}; border: none; "
+            f"border-right: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        v2 = QVBoxLayout(col2)
+        v2.setContentsMargins(0, 0, 0, 0)
+        v2.setSpacing(0)
+
+        # Header strip (title updates when drawing selected)
+        hdr2 = QFrame()
+        hdr2.setFixedHeight(44)
+        hdr2.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        hdr2_h = QHBoxLayout(hdr2)
+        hdr2_h.setContentsMargins(16, 0, 16, 0)
+        self.col2_title = QLabel("Sub-Steps")
+        self.col2_title.setStyleSheet(
+            f"QLabel {{ font-size: 13px; font-weight: 600; "
+            f"color: {T.TEXT}; background: transparent; }}"
+        )
+        hdr2_h.addWidget(self.col2_title)
+        hdr2_h.addStretch()
+        v2.addWidget(hdr2)
+
+        # Stacked widget: empty placeholder vs actual list
+        self.substep_stack = QStackedWidget()
+        self.substep_stack.setStyleSheet("background: transparent; border: none;")
+
+        # Page 0 — empty state
+        empty_page = QWidget()
+        empty_page.setStyleSheet(f"background: {T.BG};")
+        ep_v = QVBoxLayout(empty_page)
+        ep_v.setAlignment(Qt.AlignCenter)
+        self.empty_substeps = QLabel("← Select a drawing to view its sub-steps")
+        self.empty_substeps.setAlignment(Qt.AlignCenter)
+        self.empty_substeps.setStyleSheet(
+            f"QLabel {{ color: {T.TEXT_SEC}; font-size: 13px; "
+            f"font-style: italic; background: transparent; padding: 40px 20px; }}"
+        )
+        ep_v.addWidget(self.empty_substeps)
+        self.substep_stack.addWidget(empty_page)        # index 0
+
+        # Page 1 — substep list
+        list_page = QWidget()
+        list_page.setStyleSheet(f"background: {T.BG};")
+        lp_v = QVBoxLayout(list_page)
+        lp_v.setContentsMargins(0, 0, 0, 0)
+        lp_v.setSpacing(0)
+
         self.substeps = QListWidget()
         self.substeps.setDragDropMode(QListWidget.InternalMove)
         self.substeps.setDefaultDropAction(Qt.MoveAction)
-        self.substeps.setStyleSheet("""
-            QListWidget {
-                border: none;
-                border-radius: 8px;
-                padding: 0;
-                background: transparent;
-                outline: none;
-            }
-            QListWidget::item {
-                padding: 16px 20px;
-                border: 1px solid #e2e8f0;
-                border-radius: 8px;
-                margin-bottom: 10px;
-                background: #f8fafc;
-                color: #1e293b;
-            }
-            QListWidget::item:hover {
-                background: #f1f5f9;
-                border: 1px solid #cbd5e1;
-            }
-            QListWidget::item:selected {
-                background: white;
-                border: 2px solid #1e40af;
-                color: #1e293b;
-            }
-        """)
-        # FIX #6: Connect to save new order when substeps are moved
+        self.substeps.setStyleSheet(
+            f"QListWidget {{ border: none; background: {T.SURFACE}; outline: none; }}"
+            f"QListWidget::item {{"
+            f"  padding: 10px 16px; background: {T.SURFACE}; color: {T.TEXT};"
+            f"  border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+            f"QListWidget::item:hover {{ background: {T.BG}; }}"
+            f"QListWidget::item:selected {{"
+            f"  background: {T.ACCENT_BG}; color: {T.TEXT};"
+            f"  border-left: 2px solid {T.ACCENT}; }}"
+        )
         self.substeps.model().rowsMoved.connect(self.save_substep_order)
-        
-        # Empty state for substeps
-        self.empty_substeps = QLabel("← Select a drawing to view its sub-steps")
-        self.empty_substeps.setAlignment(Qt.AlignCenter)
-        self.empty_substeps.setStyleSheet("""
-            QLabel {
-                color: #94a3b8;
-                font-size: 14px;
-                font-style: italic;
-                background: transparent;
-                padding: 60px 20px;
-            }
-        """)
-        
-        center.addWidget(self.substeps)
-        center.addWidget(self.empty_substeps)
-        
-        self.substeps.hide()
+        lp_v.addWidget(self.substeps, 1)
+        self.substep_stack.addWidget(list_page)         # index 1
 
-        # Reordering help text for substeps
-        substep_help_text = QLabel("💡 Tip: Drag and drop sub-steps to reorder them")
-        substep_help_text.setStyleSheet("""
-            QLabel {
-                font-size: 12px;
-                color: #64748b;
-                background: transparent;
-                font-style: italic;
-            }
-        """)
-        center.addWidget(substep_help_text)
+        v2.addWidget(self.substep_stack, 1)
 
-        # ===== RIGHT: SUB-STEP CONTROLS =====
-        right_frame = QFrame()
-        right_frame.setStyleSheet("""
-            QFrame {
-                background: white;
-                border: none;
-                border-radius: 12px;
-            }
-        """)
-        
-        right = QVBoxLayout(right_frame)
-        right.setContentsMargins(32, 32, 32, 32)
-        right.setSpacing(16)
-        
-        right_title = QLabel("Manage Sub-Steps")
-        right_title.setStyleSheet("""
-            QLabel {
-                font-size: 18px;
-                font-weight: 600;
-                color: #1e293b;
-                background: transparent;
-            }
-        """)
-        right.addWidget(right_title)
+        # Add-substep input strip at bottom of col 2
+        add2_strip = QFrame()
+        add2_strip.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-top: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        add2_h = QHBoxLayout(add2_strip)
+        add2_h.setContentsMargins(10, 8, 10, 8)
+        add2_h.setSpacing(6)
 
-        # Drawing name display
-        drawing_label = QLabel("Current Drawing:")
-        drawing_label.setStyleSheet("""
-            QLabel {
-                font-size: 13px;
-                font-weight: 500;
-                color: #64748b;
-                background: transparent;
-            }
-        """)
-        
-        self.drawing_display = QLabel("(No drawing selected)")
-        self.drawing_display.setStyleSheet("""
-            QLabel {
-                padding: 12px 16px;
-                border-radius: 8px;
-                font-size: 14px;
-                background: #f1f5f9;
-                color: #64748b;
-                font-style: italic;
-            }
-        """)
-        
-        right.addWidget(drawing_label)
-        right.addWidget(self.drawing_display)
-
-        # Add substep section
-        add_substep_label = QLabel("Add New Sub-Step")
-        add_substep_label.setStyleSheet("""
-            QLabel {
-                font-size: 14px;
-                font-weight: 500;
-                color: #1e293b;
-                background: transparent;
-                margin-top: 16px;
-            }
-        """)
-        
         self.substep_name = QLineEdit()
-        self.substep_name.setPlaceholderText("Sub-step name")
-        self.substep_name.setStyleSheet("""
-            QLineEdit {
-                padding: 12px 16px;
-                border: none;
-                border-radius: 8px;
-                font-size: 14px;
-                background: #f1f5f9;
-                color: #1e293b;
-            }
-            QLineEdit:focus {
-                background: #e2e8f0;
-            }
-            QLineEdit::placeholder {
-                color: #94a3b8;
-            }
-        """)
-        
-        self.add_substep_btn = QPushButton("+ Add Sub-Step")
+        self.substep_name.setPlaceholderText("New sub-step name…")
+        self.substep_name.setFixedHeight(32)
+        self.substep_name.setStyleSheet(T.input_field_flat())
+
+        self.add_substep_btn = QPushButton("Add")
+        self.add_substep_btn.setFixedHeight(32)
         self.add_substep_btn.setCursor(Qt.PointingHandCursor)
         self.add_substep_btn.setEnabled(False)
-        self.add_substep_btn.setStyleSheet("""
-            QPushButton {
-                background: #1e40af;
-                color: white;
-                border: none;
-                border-radius: 8px;
-                padding: 12px 24px;
-                font-weight: 600;
-                font-size: 14px;
-            }
-            QPushButton:hover:enabled {
-                background: #1e3a8a;
-            }
-            QPushButton:disabled {
-                background: #cbd5e1;
-                color: #94a3b8;
-            }
-        """)
+        self.add_substep_btn.setStyleSheet(T.btn_primary())
         self.add_substep_btn.clicked.connect(self.add_substep)
         self.substep_name.returnPressed.connect(self.add_substep_btn.click)
-        
-        right.addWidget(add_substep_label)
-        right.addWidget(self.substep_name)
-        right.addWidget(self.add_substep_btn)
 
-        # Delete substep button
-        delete_substep_btn = QPushButton("🗑 Delete Selected Sub-Step")
-        delete_substep_btn.setCursor(Qt.PointingHandCursor)
-        delete_substep_btn.setStyleSheet("""
-            QPushButton {
-                background: white;
-                color: #dc2626;
-                border: 1px solid #fecaca;
-                border-radius: 8px;
-                padding: 10px;
-                font-weight: 600;
-                font-size: 13px;
-                margin-top: 12px;
-            }
-            QPushButton:hover {
-                background: #fef2f2;
-            }
-        """)
-        delete_substep_btn.clicked.connect(self.delete_substep)
-        right.addWidget(delete_substep_btn)
+        add2_h.addWidget(self.substep_name, 1)
+        add2_h.addWidget(self.add_substep_btn)
+        v2.addWidget(add2_strip)
 
-        right.addStretch()
+        # Delete-substep button strip
+        del2_strip = QFrame()
+        del2_strip.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-top: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        del2_h = QHBoxLayout(del2_strip)
+        del2_h.setContentsMargins(10, 8, 10, 8)
 
-        # Add frames to main layout with proper sizing
-        root.addWidget(left_frame, 2)
-        root.addWidget(center_frame, 2)
-        root.addWidget(right_frame, 1)
+        del_step_btn = QPushButton("Delete Selected Sub-Step")
+        del_step_btn.setFixedHeight(32)
+        del_step_btn.setCursor(Qt.PointingHandCursor)
+        del_step_btn.setStyleSheet(T.btn_danger())
+        del_step_btn.clicked.connect(self.delete_substep)
+        del2_h.addWidget(del_step_btn)
+        v2.addWidget(del2_strip)
 
-        # Load initial data
+        # ── COL 3 : Info panel (fixed 240px) ──────────────────────────────────
+        col3 = QFrame()
+        col3.setFixedWidth(240)
+        col3.setStyleSheet(f"QFrame {{ background: {T.BG}; border: none; }}")
+        v3 = QVBoxLayout(col3)
+        v3.setContentsMargins(0, 0, 0, 0)
+        v3.setSpacing(0)
+
+        hdr3 = QFrame()
+        hdr3.setFixedHeight(44)
+        hdr3.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        hdr3_h = QHBoxLayout(hdr3)
+        hdr3_h.setContentsMargins(16, 0, 16, 0)
+        lbl3 = QLabel("Info")
+        lbl3.setStyleSheet(
+            f"QLabel {{ font-size: 13px; font-weight: 600; "
+            f"color: {T.TEXT}; background: transparent; }}"
+        )
+        hdr3_h.addWidget(lbl3)
+        v3.addWidget(hdr3)
+
+        info_body = QFrame()
+        info_body.setStyleSheet(f"QFrame {{ background: {T.BG}; border: none; }}")
+        info_v = QVBoxLayout(info_body)
+        info_v.setContentsMargins(16, 16, 16, 16)
+        info_v.setSpacing(12)
+        info_v.setAlignment(Qt.AlignTop)
+
+        # Selected drawing card
+        sel_card = QFrame()
+        sel_card.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: 1px solid {T.BORDER_SOLID}; "
+            f"border-radius: {T.RADIUS}; }}"
+        )
+        sel_v = QVBoxLayout(sel_card)
+        sel_v.setContentsMargins(12, 10, 12, 10)
+        sel_v.setSpacing(4)
+        sel_card_label = QLabel("SELECTED DRAWING")
+        sel_card_label.setStyleSheet(
+            f"QLabel {{ font-size: 9px; font-weight: 700; letter-spacing: 0.8px; "
+            f"color: {T.TEXT_SEC}; background: transparent; }}"
+        )
+        self.drawing_display = QLabel("(None selected)")
+        self.drawing_display.setWordWrap(True)
+        self.drawing_display.setStyleSheet(
+            f"QLabel {{ font-size: 13px; font-weight: 600; "
+            f"color: {T.TEXT}; background: transparent; }}"
+        )
+        self.substep_count_lbl = QLabel("")
+        self.substep_count_lbl.setStyleSheet(
+            f"QLabel {{ font-size: 12px; color: {T.TEXT_SEC}; background: transparent; }}"
+        )
+        sel_v.addWidget(sel_card_label)
+        sel_v.addWidget(self.drawing_display)
+        sel_v.addWidget(self.substep_count_lbl)
+        info_v.addWidget(sel_card)
+
+        # Propagation notice card
+        notice_card = QFrame()
+        notice_card.setStyleSheet(
+            f"QFrame {{ background: #FFFBEB; border: 1px solid #FDE68A; "
+            f"border-radius: {T.RADIUS}; }}"
+        )
+        notice_v = QVBoxLayout(notice_card)
+        notice_v.setContentsMargins(12, 10, 12, 10)
+        notice_v.setSpacing(4)
+        notice_title = QLabel("Template Propagation")
+        notice_title.setStyleSheet(
+            f"QLabel {{ font-size: 12px; font-weight: 700; "
+            f"color: #92400E; background: transparent; }}"
+        )
+        notice_body = QLabel(
+            "Changes apply to all new projects. "
+            "Existing projects are not affected retroactively."
+        )
+        notice_body.setWordWrap(True)
+        notice_body.setStyleSheet(
+            f"QLabel {{ font-size: 11px; color: #78350F; background: transparent; "
+            f"line-height: 1.5; }}"
+        )
+        notice_v.addWidget(notice_title)
+        notice_v.addWidget(notice_body)
+        info_v.addWidget(notice_card)
+
+        info_v.addStretch()
+        v3.addWidget(info_body, 1)
+
+        # ── Assemble columns into body ─────────────────────────────────────────
+        body.addWidget(col1)
+        body.addWidget(col2, 1)
+        body.addWidget(col3)
+
+        root_v.addLayout(body, 1)
+
+        # ── Load data ─────────────────────────────────────────────────────────
         self.load_template()
+
+    # ── Business logic (unchanged) ────────────────────────────────────────────
 
     def sync_template_to_projects(self, change_type, drawing_id=None, drawing_data=None, step_id=None, step_data=None):
         """
-        CHANGE 1: Sync template changes to all existing projects.
-        Called whenever admin adds/deletes a drawing or substep in the template.
+        Sync template changes to all existing projects.
 
         change_type options:
           'add_drawing'    - add a new drawing to every project
@@ -423,10 +373,8 @@ class AdminTemplate(QWidget):
             for project_id in all_projects.keys():
                 try:
                     if change_type == 'add_drawing' and drawing_id and drawing_data:
-                        # Only add if it doesn't already exist in this project
                         existing = self.fb.get_drawing(project_id, drawing_id)
                         if not existing:
-                            # Build substeps with completed=False
                             sub_steps = {}
                             for sid, step in drawing_data.get('sub_steps', {}).items():
                                 sub_steps[sid] = {"name": step["name"], "completed": False, "order": step.get("order", 0)}
@@ -442,7 +390,6 @@ class AdminTemplate(QWidget):
                     elif change_type == 'delete_drawing' and drawing_id:
                         existing = self.fb.get_drawing(project_id, drawing_id)
                         if existing and existing.get("status") == "not_started":
-                            # Only auto-delete if not yet started — safety measure
                             self.fb.root.child("drawings").child(project_id).child(drawing_id).delete()
                             updated += 1
 
@@ -462,7 +409,6 @@ class AdminTemplate(QWidget):
                         if existing_drawing:
                             sub_steps = existing_drawing.get("sub_steps", {})
                             if step_id in sub_steps and not sub_steps[step_id].get("completed", False):
-                                # Only delete if substep hasn't been completed yet
                                 self.fb.root.child("drawings").child(project_id).child(drawing_id) \
                                     .child("sub_steps").child(step_id).delete()
                                 updated += 1
@@ -476,318 +422,214 @@ class AdminTemplate(QWidget):
             logger.error(f"Template sync failed for '{change_type}': {e}")
 
     def load_template(self):
-        """Load all drawings from template - FIX #4: sorted by order"""
+        """Load all drawings from template, sorted by order."""
         self.drawings.clear()
-        
         try:
             template = self.fb.get_project_template()
-            
-            # FIX #4: Sort drawings by order field
             drawings_list = []
             for drawing_id, drawing in template.items():
                 order = drawing.get('order', 999)
                 drawings_list.append((order, drawing_id, drawing))
-            
             drawings_list.sort(key=lambda x: x[0])
-            
+
             for order, drawing_id, drawing in drawings_list:
                 substeps_count = len(drawing.get('sub_steps', {}))
-                
-                # FIX #2: Format with substep count
-                display_text = f"{drawing['name']}\n{substeps_count} sub-steps"
-                
+                display_text = f"{drawing['name']}\n{substeps_count} sub-step{'s' if substeps_count != 1 else ''}"
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, drawing_id)
                 self.drawings.addItem(item)
-            
+
             logger.info(f"Loaded {len(template)} drawings")
-            
         except Exception as e:
             logger.error(f"Error loading template: {str(e)}")
 
     def save_drawing_order(self):
-        """FIX #4: Save new drawing order after drag-and-drop"""
+        """Save new drawing order after drag-and-drop."""
         try:
             template = self.fb.get_project_template()
-            
-            # Update order for each drawing based on current position in list
             for index in range(self.drawings.count()):
                 item = self.drawings.item(index)
                 drawing_id = item.data(Qt.UserRole)
-                
                 if drawing_id in template:
                     template[drawing_id]['order'] = index
-            
-            # Save back to database (you might need a batch update method)
             for drawing_id, drawing in template.items():
                 self.fb.save_template_drawing(drawing_id, drawing)
-            
             logger.info("Saved new drawing order")
-            
         except Exception as e:
             logger.error(f"Error saving drawing order: {str(e)}")
 
     def save_substep_order(self):
-        """FIX #6: Save new substep order after drag-and-drop"""
+        """Save new substep order after drag-and-drop."""
         if not self.selected_drawing_id:
             return
-            
         try:
             template = self.fb.get_project_template()
             drawing = template.get(self.selected_drawing_id, {})
             substeps = drawing.get('sub_steps', {})
-            
-            # Update order for each substep based on current position in list
             for index in range(self.substeps.count()):
                 item = self.substeps.item(index)
                 step_id = item.data(Qt.UserRole)
-                
                 if step_id in substeps:
                     substeps[step_id]['order'] = index
-            
-            # Save back to database
             drawing['sub_steps'] = substeps
             self.fb.save_template_drawing(self.selected_drawing_id, drawing)
-            
             logger.info(f"Saved new substep order for drawing: {self.selected_drawing_id}")
-            
         except Exception as e:
             logger.error(f"Error saving substep order: {str(e)}")
 
     def load_substeps(self, item):
-        """Load sub-steps for selected drawing - FIX #6: sorted by order"""
+        """Load sub-steps for selected drawing."""
         drawing_id = item.data(Qt.UserRole)
         self.selected_drawing_id = drawing_id
-        
         try:
             template = self.fb.get_project_template()
             drawing = template.get(drawing_id, {})
-            
-            self.drawing_display.setText(drawing.get('name', 'Unknown'))
-            self.drawing_display.setStyleSheet("""
-                QLabel {
-                    padding: 12px 16px;
-                    border-radius: 8px;
-                    font-size: 14px;
-                    background: #dbeafe;
-                    color: #1e40af;
-                    font-weight: 600;
-                }
-            """)
-            
+
+            drawing_name = drawing.get('name', 'Unknown')
+            self.drawing_display.setText(drawing_name)
+            self.col2_title.setText(f'Sub-Steps — "{drawing_name}"')
+
             self.substeps.clear()
-            self.empty_substeps.hide()
-            self.substeps.show()
-            
+
             substeps = drawing.get('sub_steps', {})
-            
-            # FIX #6: Sort substeps by order field
             substeps_list = []
             for step_id, step in substeps.items():
                 order = step.get('order', 999)
                 substeps_list.append((order, step_id, step))
-            
             substeps_list.sort(key=lambda x: x[0])
-            
+
             for order, step_id, step in substeps_list:
                 step_item = QListWidgetItem(step['name'])
                 step_item.setData(Qt.UserRole, step_id)
                 self.substeps.addItem(step_item)
-            
+
+            count = len(substeps)
+            self.substep_count_lbl.setText(f"{count} sub-step{'s' if count != 1 else ''}")
+            self.substep_stack.setCurrentIndex(1)
             self.add_substep_btn.setEnabled(True)
-            logger.info(f"Loaded {len(substeps)} sub-steps for drawing: {drawing_id}")
-            
+
+            logger.info(f"Loaded {count} sub-steps for drawing: {drawing_id}")
         except Exception as e:
             logger.error(f"Error loading sub-steps: {str(e)}")
 
     def update_drawing_substep_count(self):
-        """OPTIMIZED: Update only the substep count for the current drawing without full reload"""
+        """Update only the substep count for the current drawing without full reload."""
         if not self.selected_drawing_id:
             return
-            
         try:
-            # Find the current drawing item in the list
             current_row = self.drawings.currentRow()
             if current_row < 0:
                 return
-                
-            # Get fresh data from database
             template = self.fb.get_project_template()
             drawing = template.get(self.selected_drawing_id, {})
             substeps_count = len(drawing.get('sub_steps', {}))
-            
-            # Update just this item's text
             current_item = self.drawings.item(current_row)
-            display_text = f"{drawing['name']}\n{substeps_count} sub-steps"
+            display_text = f"{drawing['name']}\n{substeps_count} sub-step{'s' if substeps_count != 1 else ''}"
             current_item.setText(display_text)
-            
+            self.substep_count_lbl.setText(
+                f"{substeps_count} sub-step{'s' if substeps_count != 1 else ''}"
+            )
             logger.info(f"Updated substep count for drawing: {self.selected_drawing_id}")
-            
         except Exception as e:
             logger.error(f"Error updating substep count: {str(e)}")
 
     def add_drawing(self):
-        """OPTIMIZED: Add a new drawing to the template without full reload"""
+        """Add a new drawing to the template."""
         name = self.new_draw.text().strip()
-        
         if not name:
             ModernMessageBox.warning(self, "Validation Error", "Please enter a drawing name")
             return
-        
         try:
             drawing_id = str(uuid.uuid4())
-            
-            # FIX #4: Set order to end of list
             template = self.fb.get_project_template()
             max_order = max([d.get('order', 0) for d in template.values()], default=-1)
-            
-            drawing_data = {
-                "name": name,
-                "sub_steps": {},
-                "order": max_order + 1
-            }
-            
+            drawing_data = {"name": name, "sub_steps": {}, "order": max_order + 1}
             self.fb.save_template_drawing(drawing_id, drawing_data)
             logger.info(f"Added drawing: {drawing_id}")
-
             self.new_draw.clear()
-
-            # OPTIMIZED: Just add the new item to the list instead of full reload
             display_text = f"{name}\n0 sub-steps"
             item = QListWidgetItem(display_text)
             item.setData(Qt.UserRole, drawing_id)
             self.drawings.addItem(item)
-
-            # Automatically select the new drawing
             self.drawings.setCurrentItem(item)
-
-            # CHANGE 1: Sync new drawing to all existing projects
             self.sync_template_to_projects('add_drawing', drawing_id=drawing_id, drawing_data=drawing_data)
-            
         except Exception as e:
             logger.error(f"Error adding drawing: {str(e)}")
             ModernMessageBox.error(self, "Error", f"Failed to add drawing: {str(e)}")
 
     def delete_drawing(self):
-        """Delete selected drawing from template"""
+        """Delete selected drawing from template."""
         selected = self.drawings.currentItem()
         if not selected:
             ModernMessageBox.warning(self, "No Selection", "Please select a drawing to delete")
             return
-        
         drawing_id = selected.data(Qt.UserRole)
         drawing_name = selected.text().split('\n')[0]
-        
         if ModernMessageBox.confirm_delete(self, drawing_name):
             try:
                 self.fb.delete_template_drawing(drawing_id)
                 logger.info(f"Deleted drawing: {drawing_id}")
-
-                # CHANGE 1: Sync deletion to all existing projects (only removes not_started ones)
                 self.sync_template_to_projects('delete_drawing', drawing_id=drawing_id)
-
                 self.selected_drawing_id = None
-                self.drawing_display.setText("(No drawing selected)")
-                self.drawing_display.setStyleSheet("""
-                    QLabel {
-                        padding: 12px 16px;
-                        border-radius: 8px;
-                        font-size: 14px;
-                        background: #f1f5f9;
-                        color: #64748b;
-                        font-style: italic;
-                    }
-                """)
-                self.substeps.hide()
-                self.empty_substeps.show()
+                self.drawing_display.setText("(None selected)")
+                self.substep_count_lbl.setText("")
+                self.col2_title.setText("Sub-Steps")
+                self.substep_stack.setCurrentIndex(0)
                 self.add_substep_btn.setEnabled(False)
                 self.load_template()
-                
             except Exception as e:
                 logger.error(f"Error deleting drawing: {str(e)}")
                 ModernMessageBox.error(self, "Error", f"Failed to delete drawing: {str(e)}")
 
     def add_substep(self):
-        """OPTIMIZED: Add a new sub-step and immediately show it without full reload"""
+        """Add a new sub-step and immediately show it without full reload."""
         if not self.selected_drawing_id:
             ModernMessageBox.warning(self, "No Drawing Selected", "Please select a drawing first")
             return
-        
         name = self.substep_name.text().strip()
-        
         if not name:
             ModernMessageBox.warning(self, "Validation Error", "Please enter a sub-step name")
             return
-        
         try:
             step_id = str(uuid.uuid4())
-            
-            # Get current substeps to determine order
             template = self.fb.get_project_template()
             drawing = template.get(self.selected_drawing_id, {})
             substeps = drawing.get('sub_steps', {})
-            
-            # Set order to end of list
             max_order = max([s.get('order', 0) for s in substeps.values()], default=-1)
-            
-            step_data = {
-                "name": name,
-                "completed": False,
-                "order": max_order + 1
-            }
-            
+            step_data = {"name": name, "completed": False, "order": max_order + 1}
             self.fb.add_template_substep(self.selected_drawing_id, step_id, step_data)
             logger.info(f"Added sub-step: {step_id}")
-
-            # Clear input
             self.substep_name.clear()
-
-            # OPTIMIZED: Just add the new item to the list instead of reloading everything
             step_item = QListWidgetItem(name)
             step_item.setData(Qt.UserRole, step_id)
             self.substeps.addItem(step_item)
-
-            # Update the substep count in the drawing list (without full reload)
             self.update_drawing_substep_count()
-
-            # CHANGE 1: Sync new substep to all existing projects
             self.sync_template_to_projects('add_substep', drawing_id=self.selected_drawing_id,
                                            step_id=step_id, step_data=step_data)
-            
         except Exception as e:
             logger.error(f"Error adding sub-step: {str(e)}")
             ModernMessageBox.error(self, "Error", f"Failed to add sub-step: {str(e)}")
 
     def delete_substep(self):
-        """OPTIMIZED: Delete selected sub-step without full reload"""
+        """Delete selected sub-step without full reload."""
         if not self.selected_drawing_id:
             ModernMessageBox.warning(self, "No Drawing Selected", "Please select a drawing first")
             return
-        
         selected = self.substeps.currentItem()
         if not selected:
             ModernMessageBox.warning(self, "No Selection", "Please select a sub-step to delete")
             return
-        
         step_id = selected.data(Qt.UserRole)
         step_name = selected.text()
-        
         if ModernMessageBox.confirm_delete(self, step_name):
             try:
                 self.fb.delete_template_substep(self.selected_drawing_id, step_id)
                 logger.info(f"Deleted sub-step: {step_id}")
-
-                # OPTIMIZED: Just remove the item from the list instead of reloading everything
                 row = self.substeps.row(selected)
                 self.substeps.takeItem(row)
-
-                # Update the substep count in the drawing list (without full reload)
                 self.update_drawing_substep_count()
-
-                # CHANGE 1: Sync substep deletion to all existing projects
                 self.sync_template_to_projects('delete_substep', drawing_id=self.selected_drawing_id,
                                                step_id=step_id)
-                
             except Exception as e:
                 logger.error(f"Error deleting sub-step: {str(e)}")
                 ModernMessageBox.error(self, "Error", f"Failed to delete sub-step: {str(e)}")

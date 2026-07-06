@@ -1,8 +1,6 @@
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QPushButton, QStackedWidget, QApplication, QFrame
+    QMainWindow, QWidget, QVBoxLayout, QApplication, QStackedWidget
 )
-from PySide6.QtCore import Qt
 import sys
 import utils.theme as T
 
@@ -33,70 +31,23 @@ class MainWindow(QMainWindow):
         self.login_view.login_success.connect(self.on_login_success)
         self.stack.addWidget(self.login_view)
 
-        self.admin_dashboard   = None
+        self.admin_dashboard    = None
         self.employee_dashboard = None
         self.projects_page  = None
         self.review_page    = None
         self.template_page  = None
         self.users_page     = None
 
-        # ── Top header bar (hidden during login and on dashboards that have own header) ──
-        self.header = QFrame()
-        self.header.setFixedHeight(58)
-        self.header.setStyleSheet(f"""
-            QFrame {{
-                background: {T.SURFACE};
-                border: none;
-                border-bottom: 1px solid {T.BORDER};
-            }}
-        """)
-
-        h = QHBoxLayout(self.header)
-        h.setContentsMargins(28, 0, 28, 0)
-        h.setSpacing(12)
-
-        self.back_btn = QPushButton("← Back")
-        self.back_btn.setCursor(Qt.PointingHandCursor)
-        self.back_btn.setFixedHeight(32)
-        self.back_btn.setStyleSheet(f"""
-            QPushButton {{
-                background: transparent;
-                color: {T.TEXT_SEC};
-                border: 1px solid {T.BORDER};
-                border-radius: 5px;
-                font-size: 12px;
-                font-weight: 600;
-                padding: 0 14px;
-            }}
-            QPushButton:hover {{
-                background: {T.BG};
-                color: {T.TEXT};
-            }}
-        """)
-        self.back_btn.clicked.connect(self.go_back)
-        self.back_btn.hide()
-
-        self.header_title = QLabel("Dashboard")
-        self.header_title.setStyleSheet(f"QLabel {{ color: {T.TEXT}; font-size: 15px; font-weight: 600; background: transparent; }}")
-
-        h.addWidget(self.back_btn)
-        h.addSpacing(8)
-        h.addWidget(self.header_title)
-        h.addStretch()
-
-        self.header.hide()
-
         root = QWidget()
         layout = QVBoxLayout(root)
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(0)
-        layout.addWidget(self.header)
         layout.addWidget(self.stack)
 
         self.setCentralWidget(root)
         self.stack.setCurrentWidget(self.login_view)
 
-    # ── Navigation API ─────────────────────────────────────────────────────────
+    # ── Navigation ─────────────────────────────────────────────────────────────
     def on_login_success(self, user):
         self.user = user
         if user.get("role") in ["admin", "super_admin"]:
@@ -107,16 +58,13 @@ class MainWindow(QMainWindow):
             self.employee_dashboard = EmployeeDashboard(user, self.handle_logout)
             self.stack.addWidget(self.employee_dashboard)
             self.show_employee_dashboard()
-        self.header.show()
 
     def show_admin_dashboard(self):
         if self.admin_dashboard:
-            self.header.hide()   # dashboard has its own header
             self.stack.setCurrentWidget(self.admin_dashboard)
 
     def show_employee_dashboard(self):
         if self.employee_dashboard:
-            self.header.hide()   # dashboard has its own header
             self.stack.setCurrentWidget(self.employee_dashboard)
 
     def show_projects(self):
@@ -125,30 +73,22 @@ class MainWindow(QMainWindow):
             self.stack.addWidget(self.projects_page)
         else:
             self.projects_page.load_employees()
-
-        self.header.show()
-        self.header_title.setText("Project Management")
-        self.back_btn.show()
         self.stack.setCurrentWidget(self.projects_page)
 
     def show_review(self):
         if self.review_page is None:
             self.review_page = AdminReview()
             self.stack.addWidget(self.review_page)
-
-        self.header.show()
-        self.header_title.setText("Review Drawings")
-        self.back_btn.show()
         self.stack.setCurrentWidget(self.review_page)
 
     def show_templates(self):
         if self.template_page is None:
-            self.template_page = AdminTemplate()
+            self.template_page = AdminTemplate(
+                user=self.user,
+                on_back=self.go_back,
+                on_logout=self.handle_logout,
+            )
             self.stack.addWidget(self.template_page)
-
-        self.header.show()
-        self.header_title.setText("Project Template")
-        self.back_btn.show()
         self.stack.setCurrentWidget(self.template_page)
 
     def show_users(self):
@@ -157,17 +97,12 @@ class MainWindow(QMainWindow):
             self.stack.addWidget(self.users_page)
         else:
             self.users_page.load_users()
-
-        self.header.show()
-        self.header_title.setText("User Management")
-        self.back_btn.show()
         self.stack.setCurrentWidget(self.users_page)
 
     def show_drawing_detail(self, project_id, drawing_id):
         from ui.drawing_detail import DrawingDetail
         detail_widget = DrawingDetail(project_id, drawing_id, current_user=self.user)
         self.stack.addWidget(detail_widget)
-        self.header.hide()   # drawing detail has its own header
         self.stack.setCurrentWidget(detail_widget)
 
     def go_back(self):
@@ -178,7 +113,6 @@ class MainWindow(QMainWindow):
 
     def handle_logout(self):
         self.user = None
-        self.header.hide()
         self.admin_dashboard    = None
         self.employee_dashboard = None
         self.projects_page  = None
