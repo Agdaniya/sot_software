@@ -3,71 +3,71 @@ SOT Design System — aligned with SOT React design
 Single source of truth for every colour, radius, and shared stylesheet.
 """
 
-# ── Palette (from React globals.css :root) ────────────────────────────────────
-BG          = "#F7F8FA"        # --secondary / page background
-SURFACE     = "#FFFFFF"        # --background / card
-BORDER      = "rgba(0,0,0,0.10)"  # --border
-BORDER_SOLID = "#E5E7EB"       # solid equivalent for QSS
+# ── Palette ───────────────────────────────────────────────────────────────────
+BG           = "#F7F8FA"       # page background (light gray)
+SURFACE      = "#FFFFFF"       # card / panel surface
+BORDER_SOLID = "#E5E7EB"       # borders
+BORDER       = "#E5E7EB"       # alias
 
-TEXT        = "#030213"        # --primary / --foreground
-TEXT_SEC    = "#717182"        # --muted-foreground
-TEXT_HINT   = "#9CA3AF"        # placeholder
+TEXT         = "#0f172a"       # primary text  (very dark navy)
+TEXT_SEC     = "#64748b"       # secondary / muted
+TEXT_HINT    = "#94a3b8"       # placeholder
 
-ACCENT      = "#030213"        # --primary (dark)
-ACCENT_DARK = "#1a1a2e"        # hover on primary
-ACCENT_BG   = "#ECECF0"        # --muted (tint for active states)
+# Navy primary — matches the dark navy seen in login panel & buttons
+ACCENT       = "#1e2a3a"       # primary button, left panel background
+ACCENT_DARK  = "#152030"       # hover
+ACCENT_BG    = "#e8edf3"       # tint for selected rows
 
-SUCCESS     = "#16A34A"        # teal-600 equivalent
-SUCCESS_BG  = "#F0FDF4"
-WARNING     = "#D97706"        # amber-700
-WARNING_BG  = "#FFFBEB"
-DANGER      = "#D4183D"        # --destructive
-DANGER_BG   = "#FFF1F2"
-DANGER_DARK = "#B0132F"
+SUCCESS      = "#0f766e"       # teal-700
+SUCCESS_BG   = "#f0fdfa"
+WARNING      = "#d97706"       # amber-600
+WARNING_BG   = "#fffbeb"
+DANGER       = "#dc2626"       # red-600
+DANGER_BG    = "#fef2f2"
+DANGER_DARK  = "#b91c1c"
 
-# Teal for client-approved / approve actions
-TEAL        = "#0F766E"
-TEAL_BG     = "#F0FDFA"
+TEAL         = "#0f766e"
+TEAL_BG      = "#f0fdfa"
+TEAL_DARK    = "#0d6460"
 
-# Indigo for submitted
-INDIGO      = "#4338CA"
-INDIGO_BG   = "#EEF2FF"
+INDIGO       = "#4f46e5"
+INDIGO_BG    = "#eef2ff"
 
-RADIUS      = "10px"
-RADIUS_SM   = "6px"
-RADIUS_LG   = "12px"
-RADIUS_XL   = "14px"
+RADIUS       = "10px"
+RADIUS_SM    = "6px"
+RADIUS_LG    = "12px"
+RADIUS_XL    = "16px"
 
-FONT        = "'Segoe UI', 'Inter', 'Arial', sans-serif"
+FONT         = "'Segoe UI', 'Inter', 'Arial', sans-serif"
 
 # ── Role badge colours ────────────────────────────────────────────────────────
 ROLE_COLORS = {
-    "super_admin": ("#1D4ED8", "#DBEAFE"),   # blue-700, blue-100
-    "admin":       ("#6D28D9", "#EDE9FE"),   # violet-700, violet-100
-    "employee":    ("#374151", "#F3F4F6"),   # gray text, gray bg
+    "super_admin": ("#1d4ed8", "#dbeafe"),   # blue
+    "admin":       ("#7c3aed", "#ede9fe"),   # violet
+    "employee":    ("#374151", "#f3f4f6"),   # gray
 }
 
 # ── Status colours ────────────────────────────────────────────────────────────
 STATUS_COLORS = {
-    "not_started":    ("#6B7280", "#F3F4F6"),   # gray
-    "in_progress":    ("#B45309", "#FEF3C7"),   # amber
-    "submitted":      ("#4338CA", "#EEF2FF"),   # indigo
-    "admin_approved": ("#0F766E", "#F0FDFA"),   # teal
-    "admin_rejected": ("#D4183D", "#FFF1F2"),   # red
-    "client_approved":("#0F766E", "#F0FDFA"),   # teal
-    "rejected":       ("#D4183D", "#FFF1F2"),   # red
-    "completed":      ("#0F766E", "#F0FDFA"),   # teal
+    "not_started":     ("#6b7280", "#f3f4f6"),
+    "in_progress":     ("#b45309", "#fef3c7"),
+    "submitted":       ("#4f46e5", "#eef2ff"),
+    "admin_approved":  ("#0f766e", "#f0fdfa"),
+    "admin_rejected":  ("#dc2626", "#fef2f2"),
+    "client_approved": ("#0f766e", "#f0fdfa"),
+    "rejected":        ("#dc2626", "#fef2f2"),
+    "completed":       ("#0f766e", "#f0fdfa"),
 }
 
 STATUS_DOT = {
-    "not_started":    "#9CA3AF",
-    "in_progress":    "#D97706",
-    "submitted":      "#4338CA",
-    "admin_approved": "#0F766E",
-    "admin_rejected": "#D4183D",
-    "client_approved":"#0F766E",
-    "rejected":       "#D4183D",
-    "completed":      "#0F766E",
+    "not_started":     "#9ca3af",
+    "in_progress":     "#f59e0b",
+    "submitted":       "#4f46e5",
+    "admin_approved":  "#0f766e",
+    "admin_rejected":  "#dc2626",
+    "client_approved": "#0f766e",
+    "rejected":        "#dc2626",
+    "completed":       "#0f766e",
 }
 
 STATUS_LABELS = {
@@ -185,9 +185,10 @@ def btn_primary():
             color: white;
             border: none;
             border-radius: {RADIUS_SM};
-            padding: 8px 16px;
+            padding: 9px 18px;
             font-size: 13px;
             font-weight: 600;
+            letter-spacing: 0.1px;
         }}
         QPushButton:hover {{ background: {ACCENT_DARK}; }}
         QPushButton:pressed {{ background: {ACCENT_DARK}; }}
@@ -204,13 +205,13 @@ def btn_secondary():
             color: {TEXT};
             border: 1px solid {BORDER_SOLID};
             border-radius: {RADIUS_SM};
-            padding: 8px 16px;
+            padding: 9px 18px;
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 500;
         }}
         QPushButton:hover {{
             background: {BG};
-            border-color: #C0C0C8;
+            border-color: #c0c4cc;
         }}
         QPushButton:disabled {{ color: {TEXT_HINT}; }}
     """
@@ -220,9 +221,9 @@ def btn_danger():
         QPushButton {{
             background: {SURFACE};
             color: {DANGER};
-            border: 1px solid #FECDD3;
+            border: 1px solid #fecaca;
             border-radius: {RADIUS_SM};
-            padding: 8px 16px;
+            padding: 9px 18px;
             font-size: 13px;
             font-weight: 600;
         }}
@@ -237,7 +238,7 @@ def btn_danger_filled():
             color: white;
             border: none;
             border-radius: {RADIUS_SM};
-            padding: 8px 16px;
+            padding: 9px 18px;
             font-size: 13px;
             font-weight: 600;
         }}
@@ -252,11 +253,11 @@ def btn_success():
             color: white;
             border: none;
             border-radius: {RADIUS_SM};
-            padding: 8px 16px;
+            padding: 9px 18px;
             font-size: 13px;
             font-weight: 600;
         }}
-        QPushButton:hover {{ background: #0D6460; }}
+        QPushButton:hover {{ background: {TEAL_DARK}; }}
         QPushButton:disabled {{ background: {BORDER_SOLID}; color: {TEXT_HINT}; }}
     """
 

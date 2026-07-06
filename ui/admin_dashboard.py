@@ -59,7 +59,8 @@ def make_topbar(parent_widget, user, on_logout, show_back=False, back_title=""):
         hour = datetime.now().hour
         greet = "Good morning" if hour < 12 else ("Good afternoon" if hour < 17 else "Good evening")
         first = user.get("username", "").split()[0] if user else ""
-        greeting_lbl = QLabel(f"{greet}, {first}")
+        greeting_lbl = QLabel(f"{greet}, <b>{first}</b>")
+        greeting_lbl.setTextFormat(Qt.RichText)
         greeting_lbl.setStyleSheet(
             f"QLabel {{ font-size: 13px; color: {T.TEXT_SEC}; background: transparent; }}"
         )

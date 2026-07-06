@@ -17,24 +17,15 @@ ITEM_DRAWING = "drawing"
 # ── Custom widget: project header card ────────────────────────────────────────
 class ProjectHeaderWidget(QWidget):
     def __init__(self, proj_name, client_name, n_pending, n_total, collapsed, parent=None):
+        import utils.theme as T
         super().__init__(parent)
         self.setAttribute(Qt.WA_TranslucentBackground)
 
         has_pending = n_pending > 0
-        accent      = "#f97316" if has_pending else "#10b981"   # orange / emerald
-        accent_bg   = "#fff7ed" if has_pending else "#f0fdf4"
-        badge_bg    = "#f97316" if has_pending else "#10b981"
-        badge_txt   = f"  {n_pending} to review  " if has_pending else "  All reviewed  "
 
         outer = QHBoxLayout(self)
-        outer.setContentsMargins(14, 10, 14, 10)
+        outer.setContentsMargins(16, 12, 16, 12)
         outer.setSpacing(10)
-
-        # Coloured left accent bar
-        bar = QFrame()
-        bar.setFixedWidth(4)
-        bar.setStyleSheet(f"background: {accent}; border-radius: 2px;")
-        outer.addWidget(bar)
 
         # Text block
         text_col = QVBoxLayout()
@@ -42,48 +33,36 @@ class ProjectHeaderWidget(QWidget):
 
         name_lbl = QLabel(proj_name)
         name_lbl.setStyleSheet(
-            f"font-size:13px; font-weight:700; color:#1e293b; background:transparent;"
+            f"font-size:13px; font-weight:700; color:{T.TEXT}; background:transparent;"
         )
         text_col.addWidget(name_lbl)
 
-        client_lbl = QLabel(client_name)
+        client_lbl = QLabel(f"{client_name} · {n_total} drawing{'s' if n_total!=1 else ''}")
         client_lbl.setStyleSheet(
-            "font-size:11px; color:#64748b; background:transparent;"
+            f"font-size:11px; color:{T.TEXT_SEC}; background:transparent;"
         )
         text_col.addWidget(client_lbl)
         outer.addLayout(text_col, 1)
 
-        # Badge pill
-        badge = QLabel(badge_txt)
-        badge.setStyleSheet(
-            f"background:{badge_bg}; color:white; font-size:10px; font-weight:700;"
-            f"border-radius:10px; padding:3px 0px;"
-        )
-        badge.setAlignment(Qt.AlignCenter)
-        badge.setFixedWidth(90)
-        outer.addWidget(badge)
-
-        # Drawing count chip
-        count_lbl = QLabel(f"{n_total} dwg{'s' if n_total != 1 else ''}")
-        count_lbl.setStyleSheet(
-            "font-size:10px; color:#64748b; background:#f1f5f9;"
-            "border-radius:8px; padding:3px 8px;"
-        )
-        outer.addWidget(count_lbl)
+        # Pending badge — orange circle number
+        if has_pending:
+            badge = QLabel(str(n_pending))
+            badge.setFixedSize(24, 24)
+            badge.setAlignment(Qt.AlignCenter)
+            badge.setStyleSheet(
+                "background:#f97316; color:white; font-size:11px; font-weight:700;"
+                "border-radius:12px;"
+            )
+            outer.addWidget(badge)
 
         # Chevron
-        self.chevron = QLabel("▸" if collapsed else "▾")
+        self.chevron = QLabel("›" if collapsed else "∨")
         self.chevron.setStyleSheet(
-            "font-size:14px; color:#94a3b8; background:transparent;"
+            f"font-size:14px; color:{T.TEXT_SEC}; background:transparent;"
         )
         outer.addWidget(self.chevron)
 
-        self.setStyleSheet(f"""
-            QWidget {{
-                background: {accent_bg};
-                border-radius: 10px;
-            }}
-        """)
+        self.setStyleSheet(f"QWidget {{ background: {T.SURFACE}; border-radius: 0px; }}")
 
     def set_collapsed(self, collapsed):
         self.chevron.setText("▸" if collapsed else "▾")

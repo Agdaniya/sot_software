@@ -280,8 +280,8 @@ class DrawingDetail(QWidget):
             self.payment_checkbox.setChecked(self.drawing.get("payment_received", False))
             self.payment_checkbox.setStyleSheet(f"""
                 QCheckBox {{ font-size: 13px; color: {T.TEXT}; background: transparent; spacing: 8px; }}
-                QCheckBox::indicator {{ width: 17px; height: 17px; border: 1.5px solid {T.BORDER_MED}; border-radius: 4px; background: {T.SURFACE}; }}
-                QCheckBox::indicator:checked {{ background: {T.SUCCESS}; border-color: {T.SUCCESS}; }}
+                QCheckBox::indicator {{ width: 17px; height: 17px; border: 1.5px solid {T.BORDER_SOLID}; border-radius: 4px; background: {T.SURFACE}; }}
+                QCheckBox::indicator:checked {{ background: {T.TEAL}; border-color: {T.TEAL}; image: url(none); }}
             """)
             self.payment_checkbox.stateChanged.connect(self.handle_payment_toggle)
             pay_layout.addWidget(self.payment_checkbox)
@@ -324,17 +324,27 @@ class DrawingDetail(QWidget):
 
         # ── Sub-steps ─────────────────────────────────────────────────────────
         if sub_steps:
-            steps_lbl = QLabel("Drawing Steps")
-            steps_lbl.setStyleSheet(f"font-size: 14px; font-weight: 700; color: {T.TEXT}; background: transparent;")
-            self.card_layout.addWidget(steps_lbl)
+            steps_lbl_row = QHBoxLayout()
+            steps_lbl = QLabel("DRAWING STEPS")
+            steps_lbl.setStyleSheet(
+                f"font-size: 10px; font-weight: 700; letter-spacing: 0.8px; "
+                f"color: {T.TEXT_SEC}; background: transparent;"
+            )
+            steps_lbl_row.addWidget(steps_lbl)
+            steps_lbl_row.addStretch()
+            self.card_layout.addLayout(steps_lbl_row)
 
             self.step_list = QListWidget()
             self.step_list.setStyleSheet(
-                f"QListWidget {{ border: 1px solid {T.BORDER_SOLID}; border-radius: {T.RADIUS_SM}; "
-                f"background: {T.BG}; outline: none; padding: 6px; }}"
-                f"QListWidget::item {{ padding: 10px 12px; border: none; border-radius: 5px; "
-                f"margin-bottom: 3px; background: {T.SURFACE}; color: {T.TEXT}; }}"
+                f"QListWidget {{ border: none; background: transparent; outline: none; }}"
+                f"QListWidget::item {{ padding: 10px 4px; border: none; border-bottom: 1px solid {T.BORDER_SOLID}; "
+                f"background: transparent; color: {T.TEXT}; }}"
+                f"QListWidget::item:last {{ border-bottom: none; }}"
                 f"QListWidget::item:hover {{ background: {T.BG}; }}"
+                f"QListWidget::indicator {{ width: 18px; height: 18px; border-radius: 4px; "
+                f"border: 1.5px solid {T.BORDER_SOLID}; background: {T.SURFACE}; }}"
+                f"QListWidget::indicator:checked {{ background: {T.TEAL}; border-color: {T.TEAL}; }}"
+                f"QListWidget::indicator:unchecked:hover {{ border-color: {T.ACCENT}; }}"
             )
 
             for step_id, step in sub_steps.items():
@@ -354,13 +364,15 @@ class DrawingDetail(QWidget):
         # ── Action button ─────────────────────────────────────────────────────
         if not self.is_locked:
             btn_text = self._get_button_text()
+            disabled = self._is_button_disabled()
             if btn_text:
                 adv_btn = QPushButton(btn_text)
                 adv_btn.setCursor(Qt.PointingHandCursor)
                 adv_btn.setMinimumHeight(42)
+                adv_btn.setEnabled(not disabled)
                 adv_btn.setStyleSheet(T.btn_primary())
                 adv_btn.clicked.connect(self.advance_status)
-                self.card_layout.addWidget(adv_btn, 0, Qt.AlignRight)
+                self.card_layout.addWidget(adv_btn)
 
         self.card_layout.addStretch()
 
@@ -377,12 +389,26 @@ class DrawingDetail(QWidget):
         return mapping.get(status, status.replace("_", " ").title())
 
     def _get_button_text(self) -> str:
+        sub_steps = self.drawing.get("sub_steps", {})
+        total     = len(sub_steps)
+        completed = sum(1 for s in sub_steps.values() if s.get("completed", False))
+        remaining = total - completed
+        if self.drawing["status"] == "in_progress" and remaining > 0:
+            return f"Complete {remaining} remaining step{'s' if remaining != 1 else ''} first"
         transitions = {
             "not_started":    "Start Work",
             "in_progress":    "Complete & Submit for Review",
             "admin_rejected": "Resume & Resubmit",
         }
         return transitions.get(self.drawing["status"], "")
+
+    def _is_button_disabled(self) -> bool:
+        if self.drawing["status"] == "in_progress":
+            sub_steps = self.drawing.get("sub_steps", {})
+            total     = len(sub_steps)
+            completed = sum(1 for s in sub_steps.values() if s.get("completed", False))
+            return completed < total
+        return False
 
     # ── Notes ─────────────────────────────────────────────────────────────────
     def load_notes(self):
