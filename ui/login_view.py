@@ -42,7 +42,7 @@ class LoginView(QWidget):
         left_stack.setContentsMargins(0, 0, 0, 0)
 
         # Background photo — paths work in both dev and frozen exe
-        self._bg_pix   = QPixmap(_asset("ui/workspace.jpeg"))
+        self._bg_pix   = QPixmap(_asset("ui/workspace.jpg"))
         self._logo_pix = QPixmap(_asset("ui/logo.PNG"))
 
         self._bg_label = QLabel()

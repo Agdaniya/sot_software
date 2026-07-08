@@ -4,7 +4,7 @@ from PyInstaller.utils.hooks import collect_all
 
 datas = [
     ('firebase_key.json', '.'),
-    ('ui/workspace.jpeg', 'ui'),
+    ('ui/workspace.jpg', 'ui'),
     ('ui/logo.PNG',       'ui'),
     ('ui/logo.ico',       'ui'),
     ('assets/fonts/Inter-Regular.ttf',  'assets/fonts'),

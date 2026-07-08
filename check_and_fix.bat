@@ -52,8 +52,8 @@ if not exist "utils" ( echo FAIL: utils folder not found & pause & exit /b 1 )
 echo OK: All required folders found
 
 REM Check asset files required for the UI
-if not exist "ui\workspace.jpeg" (
-    echo FAIL: ui\workspace.jpeg not found - login background will be missing!
+if not exist "ui\workspace.jpg" (
+    echo FAIL: ui\workspace.jpg not found - login background will be missing!
     pause
     exit /b 1
 )

@@ -33,7 +33,7 @@ python -m PyInstaller ^
     --name SOT ^
     --icon="ui/logo.ico" ^
     --add-data "firebase_key.json;." ^
-    --add-data "ui/workspace.jpeg;ui" ^
+    --add-data "ui/workspace.jpg;ui" ^
     --add-data "ui/logo.PNG;ui" ^
     --add-data "assets/fonts/Inter-Regular.ttf;assets/fonts" ^
     --add-data "assets/fonts/Inter-Medium.ttf;assets/fonts" ^
