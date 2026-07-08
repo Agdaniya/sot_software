@@ -1,10 +1,12 @@
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QLineEdit, QPushButton,
-    QFrame, QHBoxLayout, QDialog
+    QFrame, QHBoxLayout, QDialog, QStackedLayout
 )
 from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QPixmap
 from services.auth_client import AuthClient
 import utils.theme as T
+import os as _os
 
 
 class LoginView(QWidget):
@@ -18,54 +20,90 @@ class LoginView(QWidget):
         root.setContentsMargins(0, 0, 0, 0)
         root.setSpacing(0)
 
-        # ── LEFT accent panel ─────────────────────────────────────────────────
-        left = QFrame()
-        left.setStyleSheet(f"QFrame {{ background: {T.ACCENT}; border: none; }}")
-        left_layout = QVBoxLayout(left)
-        left_layout.setContentsMargins(56, 0, 56, 0)
-        left_layout.setSpacing(0)
-        left_layout.addStretch()
+        # ── LEFT panel — workspace photo + overlay ────────────────────────────
+        left = QWidget()
+        left.setMinimumWidth(400)
+        left_stack = QStackedLayout(left)
+        left_stack.setStackingMode(QStackedLayout.StackAll)
+        left_stack.setContentsMargins(0, 0, 0, 0)
 
-        mono_tag = QLabel("Staff Operations Tracker")
-        mono_tag.setStyleSheet(
-            "QLabel { color: rgba(255,255,255,0.35); font-size: 10px; "
-            "font-family: 'Courier New', monospace; letter-spacing: 3px; "
-            "text-transform: uppercase; background: transparent; margin-bottom: 40px; }"
+        # Background photo
+        _here = _os.path.dirname(_os.path.abspath(__file__))
+        self._bg_pix   = QPixmap(_os.path.join(_here, "workspace.jpg"))
+        self._logo_pix = QPixmap(_os.path.join(_here, "logo.PNG"))
+
+        self._bg_label = QLabel()
+        self._bg_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
+        self._bg_label.setStyleSheet("QLabel { border: none; background: #0a121e; }")
+        if not self._bg_pix.isNull():
+            # Scale to fill the panel height, let the sides overflow and crop naturally
+            self._bg_label.setPixmap(
+                self._bg_pix.scaledToHeight(900, Qt.SmoothTransformation)
+            )
+
+        # Dark gradient overlay so text stays readable
+        overlay = QLabel()
+        overlay.setStyleSheet(
+            "QLabel { background: qlineargradient("
+            "x1:0, y1:0, x2:0, y2:1,"
+            "stop:0 rgba(10,18,30,0.55),"
+            "stop:0.6 rgba(10,18,30,0.65),"
+            "stop:1 rgba(10,18,30,0.80)"
+            "); border: none; }"
         )
+
+        # Content overlay widget
+        content_widget = QWidget()
+        content_widget.setStyleSheet("QWidget { background: transparent; border: none; }")
+        left_layout = QVBoxLayout(content_widget)
+        left_layout.setContentsMargins(52, 52, 52, 44)
+        left_layout.setSpacing(0)
+
+        # Logo
+        logo_lbl = QLabel()
+        logo_lbl.setStyleSheet("QLabel { background: transparent; border: none; }")
+        if not self._logo_pix.isNull():
+            logo_lbl.setPixmap(
+                self._logo_pix.scaledToHeight(52, Qt.SmoothTransformation)
+            )
+        left_layout.addWidget(logo_lbl)
+        left_layout.addStretch()
 
         brand = QLabel("SOT")
         brand.setStyleSheet(
-            "QLabel { color: white; font-size: 96px; font-weight: 800; "
-            "background: transparent; line-height: 1; margin-bottom: 20px; }"
+            "QLabel { color: white; font-size: 86px; font-weight: 800; "
+            "background: transparent; line-height: 1; letter-spacing: -2px; }"
         )
+        left_layout.addWidget(brand)
+
+        tagline = QLabel("Sketch on Thoughts")
+        tagline.setStyleSheet(
+            "QLabel { color: rgba(255,255,255,0.70); font-size: 13px; font-weight:500; "
+            "letter-spacing: 1.5px; background: transparent; margin-top: 2px; }"
+        )
+        left_layout.addWidget(tagline)
 
         divider = QFrame()
-        divider.setFixedSize(48, 1)
-        divider.setStyleSheet("background: rgba(255,255,255,0.20); border: none;")
+        divider.setFixedSize(40, 1)
+        divider.setStyleSheet("background: rgba(255,255,255,0.30); border: none;")
+        left_layout.addSpacing(20)
+        left_layout.addWidget(divider)
+        left_layout.addSpacing(18)
 
         caption = QLabel(
-            "Manage architectural projects,\n"
-            "track drawing workflows,\n"
-            "and coordinate team reviews."
+            "Track employees, projects, and\n"
+            "drawing workflows — all in one place."
         )
         caption.setStyleSheet(
-            "QLabel { color: rgba(255,255,255,0.55); font-size: 14px; "
-            "line-height: 1.8; background: transparent; margin-top: 28px; }"
+            "QLabel { color: rgba(255,255,255,0.65); font-size: 14px; "
+            "line-height: 1.7; background: transparent; }"
         )
-
-        version = QLabel("SOT Architecture Management · v2.4")
-        version.setStyleSheet(
-            "QLabel { color: rgba(255,255,255,0.20); font-size: 10px; "
-            "font-family: 'Courier New', monospace; background: transparent; margin-top: 60px; }"
-        )
-
-        left_layout.addWidget(mono_tag)
-        left_layout.addWidget(brand)
-        left_layout.addWidget(divider)
         left_layout.addWidget(caption)
-        left_layout.addStretch()
-        left_layout.addWidget(version)
-        left_layout.addSpacing(40)
+        left_layout.addSpacing(52)
+
+        left_stack.addWidget(self._bg_label)
+        left_stack.addWidget(overlay)
+        left_stack.addWidget(content_widget)
 
         # ── RIGHT login form ──────────────────────────────────────────────────
         right = QFrame()
