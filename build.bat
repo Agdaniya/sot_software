@@ -33,6 +33,12 @@ python -m PyInstaller ^
     --name SOT ^
     --icon=NONE ^
     --add-data "firebase_key.json;." ^
+    --add-data "ui/workspace.jpeg;ui" ^
+    --add-data "ui/logo.PNG;ui" ^
+    --add-data "assets/fonts/Inter-Regular.ttf;assets/fonts" ^
+    --add-data "assets/fonts/Inter-Medium.ttf;assets/fonts" ^
+    --add-data "assets/fonts/Inter-SemiBold.ttf;assets/fonts" ^
+    --add-data "assets/fonts/Inter-Bold.ttf;assets/fonts" ^
     --hidden-import firebase_admin ^
     --hidden-import firebase_admin.credentials ^
     --hidden-import firebase_admin.db ^

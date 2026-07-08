@@ -7,6 +7,21 @@ from PySide6.QtGui import QPixmap
 from services.auth_client import AuthClient
 import utils.theme as T
 import os as _os
+import sys as _sys
+
+
+def _asset(relative_path: str) -> str:
+    """
+    Return absolute path to a bundled asset.
+    Works both in development (relative to this file) and in a
+    PyInstaller --onefile frozen exe (relative to sys.executable's dir).
+    """
+    if getattr(_sys, "frozen", False):
+        base = _os.path.dirname(_sys.executable)
+    else:
+        # dev: go up one level from ui/ to sot_software/, then use relative path
+        base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    return _os.path.join(base, relative_path)
 
 
 class LoginView(QWidget):
@@ -27,10 +42,9 @@ class LoginView(QWidget):
         left_stack.setStackingMode(QStackedLayout.StackAll)
         left_stack.setContentsMargins(0, 0, 0, 0)
 
-        # Background photo
-        _here = _os.path.dirname(_os.path.abspath(__file__))
-        self._bg_pix   = QPixmap(_os.path.join(_here, "workspace.jpg"))
-        self._logo_pix = QPixmap(_os.path.join(_here, "logo.PNG"))
+        # Background photo — paths work in both dev and frozen exe
+        self._bg_pix   = QPixmap(_asset("ui/workspace.jpeg"))
+        self._logo_pix = QPixmap(_asset("ui/logo.PNG"))
 
         self._bg_label = QLabel()
         self._bg_label.setAlignment(Qt.AlignLeft | Qt.AlignVCenter)
