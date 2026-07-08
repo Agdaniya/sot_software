@@ -50,6 +50,28 @@ if not exist "services" ( echo FAIL: services folder not found & pause & exit /b
 if not exist "ui" ( echo FAIL: ui folder not found & pause & exit /b 1 )
 if not exist "utils" ( echo FAIL: utils folder not found & pause & exit /b 1 )
 echo OK: All required folders found
+
+REM Check asset files required for the UI
+if not exist "ui\workspace.jpeg" (
+    echo FAIL: ui\workspace.jpeg not found - login background will be missing!
+    pause
+    exit /b 1
+)
+if not exist "ui\logo.PNG" (
+    echo FAIL: ui\logo.PNG not found - app logo will be missing!
+    pause
+    exit /b 1
+)
+if not exist "ui\logo.ico" (
+    echo WARNING: ui\logo.ico not found - generating from logo.PNG...
+    python -c "from PIL import Image; img=Image.open('ui/logo.PNG').convert('RGBA'); img.save('ui/logo.ico',format='ICO',sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)]); print('Created ui\\logo.ico')"
+    if errorlevel 1 (
+        echo FAIL: Could not create logo.ico - install Pillow: pip install pillow
+        pause
+        exit /b 1
+    )
+)
+echo OK: Asset files present
 echo.
 
 REM [4/8] Check __init__.py files

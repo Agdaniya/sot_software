@@ -13,13 +13,12 @@ import sys as _sys
 def _asset(relative_path: str) -> str:
     """
     Return absolute path to a bundled asset.
-    Works both in development (relative to this file) and in a
-    PyInstaller --onefile frozen exe (relative to sys.executable's dir).
+    - Frozen --onefile exe: PyInstaller extracts datas into sys._MEIPASS (temp dir)
+    - Development: relative to the sot_software/ root (one level up from ui/)
     """
     if getattr(_sys, "frozen", False):
-        base = _os.path.dirname(_sys.executable)
+        base = _sys._MEIPASS          # where PyInstaller extracts all bundled files
     else:
-        # dev: go up one level from ui/ to sot_software/, then use relative path
         base = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
     return _os.path.join(base, relative_path)
 

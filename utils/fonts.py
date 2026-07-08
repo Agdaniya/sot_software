@@ -10,7 +10,8 @@ from PySide6.QtWidgets import QApplication
 
 def _assets_dir() -> str:
     if getattr(sys, "frozen", False):
-        return os.path.join(os.path.dirname(sys.executable), "assets", "fonts")
+        # --onefile: PyInstaller extracts datas into sys._MEIPASS, not next to the exe
+        return os.path.join(sys._MEIPASS, "assets", "fonts")
     return os.path.normpath(
         os.path.join(os.path.dirname(__file__), "..", "assets", "fonts")
     )
