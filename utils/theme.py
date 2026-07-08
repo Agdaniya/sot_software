@@ -38,7 +38,7 @@ RADIUS_SM    = "6px"
 RADIUS_LG    = "12px"
 RADIUS_XL    = "16px"
 
-FONT         = "'Segoe UI', 'Inter', 'Arial', sans-serif"
+FONT         = "'Inter', 'Segoe UI', system-ui, 'Arial', sans-serif"
 
 # ── Role badge colours ────────────────────────────────────────────────────────
 ROLE_COLORS = {
@@ -89,6 +89,10 @@ def app_base():
             font-family: {FONT};
             font-size: 13px;
             color: {TEXT};
+        }}
+        QLabel {{
+            border: none;
+            background: transparent;
         }}
         QScrollBar:vertical {{
             background: transparent;

@@ -81,33 +81,41 @@ class DrawingDetail(QWidget):
         sep_v.setFixedSize(1, 18)
         sep_v.setStyleSheet(f"background: {T.BORDER_SOLID}; border: none;")
 
-        drawing_name = QLabel(self.drawing["name"])
-        drawing_name.setStyleSheet(
-            f"font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent;"
+        drawing_name_lbl = QLabel(self.drawing["name"])
+        drawing_name_lbl.setStyleSheet(
+            f"font-size: 13px; font-weight: 700; color: {T.TEXT};"
         )
 
         sep2 = QLabel("·")
-        sep2.setStyleSheet(f"color: {T.TEXT_HINT}; background: transparent; margin: 0 6px;")
+        sep2.setStyleSheet(f"color: {T.TEXT_HINT}; margin: 0 8px;")
 
         proj_lbl = QLabel(f"{project['name']}  /  {project['client_name']}")
-        proj_lbl.setStyleSheet(
-            f"font-size: 12px; color: {T.TEXT_SEC}; background: transparent;"
-        )
+        proj_lbl.setStyleSheet(f"font-size: 12px; color: {T.TEXT_SEC};")
 
         status     = self.drawing["status"]
         status_txt = self._status_label(status)
-        fg, bg     = T.STATUS_COLORS.get(status, (T.TEXT_SEC, T.BG))
-        status_badge = QLabel(status_txt)
+        _status_meta = {
+            "not_started":    ("#f3f4f6", "#6b7280"),
+            "in_progress":    ("#fef9c3", "#92400e"),
+            "submitted":      ("#ede9fe", "#5b21b6"),
+            "admin_approved": ("#ccfbf1", "#0f766e"),
+            "admin_rejected": ("#ffe4e6", "#be123c"),
+            "client_approved":("#ccfbf1", "#0f766e"),
+            "completed":      ("#ccfbf1", "#0f766e"),
+        }
+        pill_bg, pill_fg = _status_meta.get(status, (T.BG, T.TEXT_SEC))
+        status_badge = QLabel(f"● {status_txt}")
         status_badge.setStyleSheet(
-            f"QLabel {{ background: {bg}; color: {fg}; border-radius: 4px; "
-            f"padding: 2px 8px; font-size: 10px; font-weight: 700; }}"
+            f"background: {pill_bg}; color: {pill_fg}; border-radius: 10px; "
+            f"padding: 4px 12px; font-size: 11px; font-weight: 600; "
+            f"font-family: 'Courier New', monospace;"
         )
 
         hbl.addWidget(back_btn)
         hbl.addSpacing(12)
         hbl.addWidget(sep_v)
         hbl.addSpacing(12)
-        hbl.addWidget(drawing_name)
+        hbl.addWidget(drawing_name_lbl)
         hbl.addWidget(sep2)
         hbl.addWidget(proj_lbl)
         hbl.addStretch()
@@ -121,17 +129,17 @@ class DrawingDetail(QWidget):
         body_layout.setContentsMargins(0, 0, 0, 0)
         body_layout.setSpacing(0)
 
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setStyleSheet(f"QScrollArea {{ border: none; background: {T.BG}; }}")
+        # Left: scrollable drawing card
+        left_scroll = QScrollArea()
+        left_scroll.setWidgetResizable(True)
+        left_scroll.setStyleSheet(f"QScrollArea {{ border: none; background: {T.BG}; }}")
 
-        content = QWidget()
-        content.setStyleSheet(f"QWidget {{ background: {T.BG}; }}")
-        cl = QVBoxLayout(content)
-        cl.setContentsMargins(28, 24, 28, 28)
-        cl.setSpacing(16)
+        left_content = QWidget()
+        left_content.setStyleSheet(f"QWidget {{ background: {T.BG}; }}")
+        left_cl = QVBoxLayout(left_content)
+        left_cl.setContentsMargins(28, 24, 28, 28)
+        left_cl.setSpacing(16)
 
-        # ── LEFT: drawing card ────────────────────────────────────────────────
         left_card = QFrame()
         left_card.setStyleSheet(T.card())
         self.card_layout = QVBoxLayout(left_card)
@@ -139,28 +147,32 @@ class DrawingDetail(QWidget):
         self.card_layout.setSpacing(16)
         self.build_card_content()
 
-        # ── RIGHT: notes ──────────────────────────────────────────────────────
+        left_cl.addWidget(left_card)
+        left_cl.addStretch()
+        left_scroll.setWidget(left_content)
+
+        # ── RIGHT: notes panel ────────────────────────────────────────────────
         right_card = QFrame()
         right_card.setStyleSheet(
             f"QFrame {{ background: {T.SURFACE}; border: none; "
             f"border-left: 1px solid {T.BORDER_SOLID}; }}"
         )
-        right_card.setFixedWidth(320)
+        right_card.setFixedWidth(340)
         notes_layout = QVBoxLayout(right_card)
         notes_layout.setContentsMargins(0, 0, 0, 0)
         notes_layout.setSpacing(0)
 
         notes_hdr = QFrame()
-        notes_hdr.setFixedHeight(48)
+        notes_hdr.setFixedHeight(52)
         notes_hdr.setStyleSheet(
             f"QFrame {{ background: {T.SURFACE}; border: none; "
             f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
         )
         nh = QHBoxLayout(notes_hdr)
-        nh.setContentsMargins(16, 0, 16, 0)
+        nh.setContentsMargins(20, 0, 20, 0)
         notes_title = QLabel("Notes")
         notes_title.setStyleSheet(
-            f"QLabel {{ font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
+            f"font-size: 15px; font-weight: 700; color: {T.TEXT};"
         )
         nh.addWidget(notes_title)
         notes_layout.addWidget(notes_hdr)
@@ -171,8 +183,8 @@ class DrawingDetail(QWidget):
             f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
         )
         nf = QVBoxLayout(notes_form)
-        nf.setContentsMargins(12, 12, 12, 12)
-        nf.setSpacing(8)
+        nf.setContentsMargins(16, 14, 16, 14)
+        nf.setSpacing(10)
 
         if self.current_user:
             self.note_input = QTextEdit()
@@ -183,7 +195,7 @@ class DrawingDetail(QWidget):
 
             add_note_btn = QPushButton("Add Note")
             add_note_btn.setCursor(Qt.PointingHandCursor)
-            add_note_btn.setMinimumHeight(34)
+            add_note_btn.setMinimumHeight(36)
             add_note_btn.setStyleSheet(T.btn_primary())
             add_note_btn.clicked.connect(self.add_note)
             nf.addWidget(add_note_btn)
@@ -192,22 +204,21 @@ class DrawingDetail(QWidget):
         # Notes scroll area
         notes_scroll = QScrollArea()
         notes_scroll.setWidgetResizable(True)
-        notes_scroll.setStyleSheet(f"QScrollArea {{ border: none; background: transparent; }}")
+        notes_scroll.setStyleSheet(f"QScrollArea {{ border: none; background: {T.BG}; }}")
         notes_container = QWidget()
-        notes_container.setStyleSheet(f"QWidget {{ background: transparent; }}")
+        notes_container.setStyleSheet(f"QWidget {{ background: {T.BG}; }}")
         self.notes_list_layout = QVBoxLayout(notes_container)
         self.notes_list_layout.setSpacing(10)
-        self.notes_list_layout.setContentsMargins(0, 0, 0, 0)
+        self.notes_list_layout.setContentsMargins(16, 16, 16, 16)
         self.notes_list_layout.addStretch()
         notes_scroll.setWidget(notes_container)
-        notes_layout.addWidget(notes_scroll)
+        notes_layout.addWidget(notes_scroll, 1)
 
         self.load_notes()
 
-        cl.addWidget(left_card, 2)
-        cl.addWidget(right_card, 1)
-        scroll.setWidget(content)
-        self._root_layout.addWidget(scroll)
+        body_layout.addWidget(left_scroll, 1)
+        body_layout.addWidget(right_card)
+        self._root_layout.addWidget(body, 1)
 
     # ── Card content (rebuilds on state changes) ──────────────────────────────
     def build_card_content(self):
@@ -230,58 +241,66 @@ class DrawingDetail(QWidget):
             total     = len(sub_steps)
             pct       = int((completed / total) * 100) if total else 0
 
+            # Progress card
+            prog_card = QFrame()
+            prog_card.setStyleSheet(T.card())
+            prog_card_layout = QVBoxLayout(prog_card)
+            prog_card_layout.setContentsMargins(20, 16, 20, 16)
+            prog_card_layout.setSpacing(10)
+
             prog_header = QHBoxLayout()
-            prog_lbl = QLabel("Progress")
-            prog_lbl.setStyleSheet(f"font-size: 14px; font-weight: 700; color: {T.TEXT}; background: transparent;")
-            prog_count = QLabel(f"{completed} / {total} steps")
-            prog_count.setStyleSheet(f"font-size: 12px; color: {T.TEXT_SEC}; background: transparent;")
+            prog_lbl = QLabel("PROGRESS")
+            prog_lbl.setStyleSheet(
+                f"font-size: 10px; font-weight: 600; color: {T.TEXT_HINT}; "
+                f"letter-spacing: 1.5px;"
+            )
+            prog_count = QLabel(f"{completed}/{total} steps  ·  {pct}%")
+            prog_count.setStyleSheet(
+                f"font-size: 12px; color: {T.TEXT_SEC}; "
+                f"font-family: 'Courier New', monospace;"
+            )
             prog_header.addWidget(prog_lbl)
             prog_header.addStretch()
             prog_header.addWidget(prog_count)
-            self.card_layout.addLayout(prog_header)
+            prog_card_layout.addLayout(prog_header)
 
             bar = QProgressBar()
             bar.setValue(pct)
-            bar.setTextVisible(True)
-            bar.setFormat(f"{pct}%")
-            bar.setFixedHeight(10)
-            fg_color = T.SUCCESS if pct == 100 else T.ACCENT
+            bar.setTextVisible(False)
+            bar.setFixedHeight(8)
+            fg_color = "#0f766e" if pct == 100 else T.ACCENT
             bar.setStyleSheet(f"""
                 QProgressBar {{
-                    border: none; border-radius: 5px;
-                    background: {T.BORDER}; text-align: center;
-                    font-size: 10px; color: transparent;
+                    border: none; border-radius: 4px;
+                    background: {T.BORDER};
                 }}
                 QProgressBar::chunk {{
-                    background: {fg_color}; border-radius: 5px;
+                    background: {fg_color}; border-radius: 4px;
                 }}
             """)
-            self.card_layout.addWidget(bar)
+            prog_card_layout.addWidget(bar)
+            self.card_layout.addWidget(prog_card)
 
         # ── Payment tracking (admin + approved states) ────────────────────────
         if self.is_admin and status in ["admin_approved", "client_approved"]:
             pay_frame = QFrame()
-            pay_frame.setStyleSheet(f"""
-                QFrame {{
-                    background: {T.BG};
-                    border: 1px solid {T.BORDER};
-                    border-radius: {T.RADIUS_SM};
-                }}
-            """)
+            pay_frame.setStyleSheet(T.card())
             pay_layout = QVBoxLayout(pay_frame)
-            pay_layout.setContentsMargins(16, 14, 16, 14)
+            pay_layout.setContentsMargins(20, 16, 20, 16)
             pay_layout.setSpacing(6)
 
-            pay_title = QLabel("Payment Tracking")
-            pay_title.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent;")
+            pay_title = QLabel("PAYMENT")
+            pay_title.setStyleSheet(
+                f"font-size: 10px; font-weight: 600; color: {T.TEXT_HINT}; letter-spacing: 1.5px;"
+            )
             pay_layout.addWidget(pay_title)
 
             self.payment_checkbox = QCheckBox("Payment received")
             self.payment_checkbox.setChecked(self.drawing.get("payment_received", False))
             self.payment_checkbox.setStyleSheet(f"""
-                QCheckBox {{ font-size: 13px; color: {T.TEXT}; background: transparent; spacing: 8px; }}
+                QCheckBox {{ font-size: 13px; color: {T.TEXT}; spacing: 8px; }}
                 QCheckBox::indicator {{ width: 17px; height: 17px; border: 1.5px solid {T.BORDER_SOLID}; border-radius: 4px; background: {T.SURFACE}; }}
-                QCheckBox::indicator:checked {{ background: {T.TEAL}; border-color: {T.TEAL}; image: url(none); }}
+                QCheckBox::indicator:checked {{ background: {T.TEAL}; border-color: {T.TEAL}; }}
             """)
             self.payment_checkbox.stateChanged.connect(self.handle_payment_toggle)
             pay_layout.addWidget(self.payment_checkbox)
@@ -291,7 +310,7 @@ class DrawingDetail(QWidget):
                 try:
                     dt = datetime.fromisoformat(payment_date)
                     date_lbl = QLabel(f"Paid on {dt.strftime('%b %d, %Y at %I:%M %p')}")
-                    date_lbl.setStyleSheet(f"font-size: 11px; color: {T.TEXT_HINT}; background: transparent;")
+                    date_lbl.setStyleSheet(f"font-size: 11px; color: {T.TEXT_HINT};")
                     pay_layout.addWidget(date_lbl)
                 except Exception:
                     pass
@@ -322,24 +341,32 @@ class DrawingDetail(QWidget):
                 rl.addWidget(feedback)
                 self.card_layout.addWidget(rej_frame)
 
-        # ── Sub-steps ─────────────────────────────────────────────────────────
+        # ── Sub-steps card ────────────────────────────────────────────────────
         if sub_steps:
-            steps_lbl_row = QHBoxLayout()
+            steps_card = QFrame()
+            steps_card.setStyleSheet(T.card())
+            steps_card_layout = QVBoxLayout(steps_card)
+            steps_card_layout.setContentsMargins(20, 16, 20, 16)
+            steps_card_layout.setSpacing(12)
+
             steps_lbl = QLabel("DRAWING STEPS")
             steps_lbl.setStyleSheet(
-                f"font-size: 10px; font-weight: 700; letter-spacing: 0.8px; "
-                f"color: {T.TEXT_SEC}; background: transparent;"
+                f"font-size: 10px; font-weight: 600; letter-spacing: 1.5px; "
+                f"color: {T.TEXT_HINT};"
             )
-            steps_lbl_row.addWidget(steps_lbl)
-            steps_lbl_row.addStretch()
-            self.card_layout.addLayout(steps_lbl_row)
+            steps_card_layout.addWidget(steps_lbl)
+
+            div = QFrame()
+            div.setFixedHeight(1)
+            div.setStyleSheet(f"background: {T.BORDER_SOLID}; border: none;")
+            steps_card_layout.addWidget(div)
 
             self.step_list = QListWidget()
             self.step_list.setStyleSheet(
                 f"QListWidget {{ border: none; background: transparent; outline: none; }}"
-                f"QListWidget::item {{ padding: 10px 4px; border: none; border-bottom: 1px solid {T.BORDER_SOLID}; "
-                f"background: transparent; color: {T.TEXT}; }}"
-                f"QListWidget::item:last {{ border-bottom: none; }}"
+                f"QListWidget::item {{ padding: 10px 4px; border: none; "
+                f"border-bottom: 1px solid {T.BORDER_SOLID}; "
+                f"background: transparent; color: {T.TEXT}; font-size: 13px; }}"
                 f"QListWidget::item:hover {{ background: {T.BG}; }}"
                 f"QListWidget::indicator {{ width: 18px; height: 18px; border-radius: 4px; "
                 f"border: 1.5px solid {T.BORDER_SOLID}; background: {T.SURFACE}; }}"
@@ -359,10 +386,29 @@ class DrawingDetail(QWidget):
             if not self.is_locked:
                 self.step_list.itemChanged.connect(self.update_substeps)
 
-            self.card_layout.addWidget(self.step_list)
+            steps_card_layout.addWidget(self.step_list)
 
-        # ── Action button ─────────────────────────────────────────────────────
-        if not self.is_locked:
+            # ── Action button inside the steps card ───────────────────────────
+            if not self.is_locked:
+                btn_text = self._get_button_text()
+                disabled = self._is_button_disabled()
+                if btn_text:
+                    sep2 = QFrame()
+                    sep2.setFixedHeight(1)
+                    sep2.setStyleSheet(f"background: {T.BORDER_SOLID}; border: none;")
+                    steps_card_layout.addWidget(sep2)
+
+                    adv_btn = QPushButton(btn_text)
+                    adv_btn.setCursor(Qt.PointingHandCursor)
+                    adv_btn.setMinimumHeight(42)
+                    adv_btn.setEnabled(not disabled)
+                    adv_btn.setStyleSheet(T.btn_primary())
+                    adv_btn.clicked.connect(self.advance_status)
+                    steps_card_layout.addWidget(adv_btn)
+
+            self.card_layout.addWidget(steps_card)
+        elif not self.is_locked:
+            # No substeps — just show the action button
             btn_text = self._get_button_text()
             disabled = self._is_button_disabled()
             if btn_text:
@@ -381,10 +427,11 @@ class DrawingDetail(QWidget):
         mapping = {
             "not_started":    "Not Started",
             "in_progress":    "In Progress",
-            "submitted":      "Submitted — Awaiting Review",
+            "submitted":      "Submitted",
             "admin_approved": "Admin Approved",
-            "admin_rejected": "Rejected — Needs Revision",
+            "admin_rejected": "Rejected",
             "client_approved":"Client Approved",
+            "completed":      "Completed",
         }
         return mapping.get(status, status.replace("_", " ").title())
 
@@ -421,19 +468,17 @@ class DrawingDetail(QWidget):
             if not notes:
                 empty = QLabel("No notes yet.")
                 empty.setAlignment(Qt.AlignCenter)
-                empty.setStyleSheet(f"color: {T.TEXT_HINT}; font-size: 12px; background: transparent; padding: 20px;")
+                empty.setStyleSheet(f"color: {T.TEXT_HINT}; font-size: 12px; padding: 20px;")
                 self.notes_list_layout.insertWidget(0, empty)
                 return
 
             sorted_notes = sorted(notes.values(), key=lambda x: x.get("created_at", ""), reverse=True)
             for note in sorted_notes:
                 note_frame = QFrame()
-                note_frame.setStyleSheet(f"""
-                    QFrame {{
-                        background: {T.BG}; border: 1px solid {T.BORDER};
-                        border-radius: {T.RADIUS_SM};
-                    }}
-                """)
+                note_frame.setStyleSheet(
+                    f"QFrame {{ background: {T.SURFACE}; border: none; "
+                    f"border-radius: {T.RADIUS_SM}; }}"
+                )
                 nl = QVBoxLayout(note_frame)
                 nl.setContentsMargins(14, 12, 14, 12)
                 nl.setSpacing(4)
@@ -442,7 +487,10 @@ class DrawingDetail(QWidget):
                 author   = note.get("author_name", "Unknown")
                 deleted  = note.get("author_deleted", False)
                 author_lbl = QLabel(f"{author}{'  [deleted]' if deleted else ''}")
-                author_lbl.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {'#DC2626' if deleted else T.TEXT}; background: transparent;")
+                author_lbl.setStyleSheet(
+                    f"font-size: 12px; font-weight: 600; "
+                    f"color: {'#DC2626' if deleted else T.TEXT};"
+                )
                 meta_row.addWidget(author_lbl)
 
                 ts = note.get("created_at", "")
@@ -451,20 +499,20 @@ class DrawingDetail(QWidget):
                 except Exception:
                     time_str = ts
                 time_lbl = QLabel(time_str)
-                time_lbl.setStyleSheet(f"font-size: 11px; color: {T.TEXT_HINT}; background: transparent;")
+                time_lbl.setStyleSheet(f"font-size: 11px; color: {T.TEXT_HINT};")
                 meta_row.addStretch()
                 meta_row.addWidget(time_lbl)
                 nl.addLayout(meta_row)
 
-                body = QLabel(note.get("content", ""))
-                body.setWordWrap(True)
-                body.setStyleSheet(f"font-size: 13px; color: {T.TEXT}; background: transparent; line-height: 1.4;")
-                nl.addWidget(body)
+                body_lbl = QLabel(note.get("content", ""))
+                body_lbl.setWordWrap(True)
+                body_lbl.setStyleSheet(f"font-size: 13px; color: {T.TEXT};")
+                nl.addWidget(body_lbl)
 
                 self.notes_list_layout.insertWidget(self.notes_list_layout.count() - 1, note_frame)
         except Exception as e:
             err = QLabel(f"Error loading notes: {str(e)}")
-            err.setStyleSheet(f"color: {T.DANGER}; font-size: 12px; background: transparent;")
+            err.setStyleSheet(f"color: {T.DANGER}; font-size: 12px;")
             self.notes_list_layout.insertWidget(0, err)
 
     def add_note(self):

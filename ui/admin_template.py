@@ -4,7 +4,7 @@ from PySide6.QtWidgets import (
     QLabel, QListWidget, QLineEdit, QPushButton, QFrame,
     QListWidgetItem, QSizePolicy, QScrollArea
 )
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSize
 from services.firebase_client import FirebaseClient
 from utils.logger import logger
 from utils.modern_dialogs import ModernMessageBox
@@ -56,21 +56,20 @@ class AdminTemplate(QWidget):
 
         # Header strip
         hdr1 = QFrame()
-        hdr1.setFixedHeight(44)
+        hdr1.setFixedHeight(52)
         hdr1.setStyleSheet(
             f"QFrame {{ background: {T.SURFACE}; border: none; "
             f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
         )
         hdr1_h = QHBoxLayout(hdr1)
-        hdr1_h.setContentsMargins(16, 0, 16, 0)
+        hdr1_h.setContentsMargins(20, 0, 16, 0)
         lbl1 = QLabel("Template Drawings")
         lbl1.setStyleSheet(
-            f"QLabel {{ font-size: 13px; font-weight: 600; "
-            f"color: {T.TEXT}; background: transparent; }}"
+            f"font-size: 15px; font-weight: 700; color: {T.TEXT};"
         )
         tip1 = QLabel("Drag to reorder")
         tip1.setStyleSheet(
-            f"QLabel {{ font-size: 11px; color: {T.TEXT_SEC}; background: transparent; }}"
+            f"font-size: 12px; color: {T.TEXT_SEC};"
         )
         hdr1_h.addWidget(lbl1)
         hdr1_h.addStretch()
@@ -82,14 +81,14 @@ class AdminTemplate(QWidget):
         self.drawings.setDragDropMode(QListWidget.InternalMove)
         self.drawings.setDefaultDropAction(Qt.MoveAction)
         self.drawings.setStyleSheet(
-            f"QListWidget {{ border: none; background: transparent; outline: none; }}"
+            f"QListWidget {{ border: none; background: {T.SURFACE}; outline: none; }}"
             f"QListWidget::item {{"
-            f"  padding: 10px 16px; background: {T.SURFACE}; color: {T.TEXT};"
+            f"  padding: 0; background: {T.SURFACE};"
             f"  border-bottom: 1px solid {T.BORDER_SOLID}; }}"
             f"QListWidget::item:hover {{ background: {T.BG}; }}"
             f"QListWidget::item:selected {{"
-            f"  background: {T.ACCENT_BG}; color: {T.TEXT};"
-            f"  border-left: 2px solid {T.ACCENT}; }}"
+            f"  background: #f0f6ff;"
+            f"  border-left: 3px solid #3b82f6; }}"
         )
         self.drawings.itemClicked.connect(self.load_substeps)
         self.drawings.model().rowsMoved.connect(self.save_drawing_order)
@@ -150,17 +149,16 @@ class AdminTemplate(QWidget):
 
         # Header strip (title updates when drawing selected)
         hdr2 = QFrame()
-        hdr2.setFixedHeight(44)
+        hdr2.setFixedHeight(52)
         hdr2.setStyleSheet(
             f"QFrame {{ background: {T.SURFACE}; border: none; "
             f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
         )
         hdr2_h = QHBoxLayout(hdr2)
-        hdr2_h.setContentsMargins(16, 0, 16, 0)
+        hdr2_h.setContentsMargins(20, 0, 16, 0)
         self.col2_title = QLabel("Sub-Steps")
         self.col2_title.setStyleSheet(
-            f"QLabel {{ font-size: 13px; font-weight: 600; "
-            f"color: {T.TEXT}; background: transparent; }}"
+            f"font-size: 15px; font-weight: 700; color: {T.TEXT};"
         )
         hdr2_h.addWidget(self.col2_title)
         hdr2_h.addStretch()
@@ -195,14 +193,14 @@ class AdminTemplate(QWidget):
         self.substeps.setDragDropMode(QListWidget.InternalMove)
         self.substeps.setDefaultDropAction(Qt.MoveAction)
         self.substeps.setStyleSheet(
-            f"QListWidget {{ border: none; background: {T.SURFACE}; outline: none; }}"
+            f"QListWidget {{ border: none; background: {T.BG}; outline: none; }}"
             f"QListWidget::item {{"
-            f"  padding: 10px 16px; background: {T.SURFACE}; color: {T.TEXT};"
+            f"  padding: 0; background: {T.BG};"
             f"  border-bottom: 1px solid {T.BORDER_SOLID}; }}"
-            f"QListWidget::item:hover {{ background: {T.BG}; }}"
+            f"QListWidget::item:hover {{ background: {T.SURFACE}; }}"
             f"QListWidget::item:selected {{"
-            f"  background: {T.ACCENT_BG}; color: {T.TEXT};"
-            f"  border-left: 2px solid {T.ACCENT}; }}"
+            f"  background: #f0f6ff;"
+            f"  border-left: 3px solid #3b82f6; }}"
         )
         self.substeps.model().rowsMoved.connect(self.save_substep_order)
         lp_v.addWidget(self.substeps, 1)
@@ -254,26 +252,28 @@ class AdminTemplate(QWidget):
         del2_h.addWidget(del_step_btn)
         v2.addWidget(del2_strip)
 
-        # ── COL 3 : Info panel (fixed 240px) ──────────────────────────────────
+        # ── COL 3 : Info panel (fixed 280px) ──────────────────────────────────
         col3 = QFrame()
-        col3.setFixedWidth(240)
-        col3.setStyleSheet(f"QFrame {{ background: {T.BG}; border: none; }}")
+        col3.setFixedWidth(280)
+        col3.setStyleSheet(
+            f"QFrame {{ background: {T.BG}; border: none; "
+            f"border-left: 1px solid {T.BORDER_SOLID}; }}"
+        )
         v3 = QVBoxLayout(col3)
         v3.setContentsMargins(0, 0, 0, 0)
         v3.setSpacing(0)
 
         hdr3 = QFrame()
-        hdr3.setFixedHeight(44)
+        hdr3.setFixedHeight(52)
         hdr3.setStyleSheet(
             f"QFrame {{ background: {T.SURFACE}; border: none; "
             f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
         )
         hdr3_h = QHBoxLayout(hdr3)
-        hdr3_h.setContentsMargins(16, 0, 16, 0)
+        hdr3_h.setContentsMargins(20, 0, 16, 0)
         lbl3 = QLabel("Info")
         lbl3.setStyleSheet(
-            f"QLabel {{ font-size: 13px; font-weight: 600; "
-            f"color: {T.TEXT}; background: transparent; }}"
+            f"font-size: 15px; font-weight: 700; color: {T.TEXT};"
         )
         hdr3_h.addWidget(lbl3)
         v3.addWidget(hdr3)
@@ -292,22 +292,24 @@ class AdminTemplate(QWidget):
             f"border-radius: {T.RADIUS}; }}"
         )
         sel_v = QVBoxLayout(sel_card)
-        sel_v.setContentsMargins(12, 10, 12, 10)
+        sel_v.setContentsMargins(14, 12, 14, 12)
         sel_v.setSpacing(4)
+
         sel_card_label = QLabel("SELECTED DRAWING")
         sel_card_label.setStyleSheet(
-            f"QLabel {{ font-size: 9px; font-weight: 700; letter-spacing: 0.8px; "
-            f"color: {T.TEXT_SEC}; background: transparent; }}"
+            "font-size: 9px; font-weight: 700; letter-spacing: 1.5px; "
+            f"color: {T.TEXT_HINT}; border: none; background: transparent;"
         )
         self.drawing_display = QLabel("(None selected)")
         self.drawing_display.setWordWrap(True)
         self.drawing_display.setStyleSheet(
-            f"QLabel {{ font-size: 13px; font-weight: 600; "
-            f"color: {T.TEXT}; background: transparent; }}"
+            f"font-size: 16px; font-weight: 700; color: {T.TEXT}; "
+            "border: none; background: transparent;"
         )
         self.substep_count_lbl = QLabel("")
         self.substep_count_lbl.setStyleSheet(
-            f"QLabel {{ font-size: 11px; color: {T.TEXT_HINT}; background: transparent; }}"
+            f"font-size: 12px; color: {T.TEXT_SEC}; "
+            "border: none; background: transparent;"
         )
         sel_v.addWidget(sel_card_label)
         sel_v.addWidget(self.drawing_display)
@@ -321,12 +323,12 @@ class AdminTemplate(QWidget):
             f"border-radius: {T.RADIUS}; }}"
         )
         notice_v = QVBoxLayout(notice_card)
-        notice_v.setContentsMargins(12, 10, 12, 10)
+        notice_v.setContentsMargins(14, 12, 14, 12)
         notice_v.setSpacing(4)
         notice_title = QLabel("Template Propagation")
         notice_title.setStyleSheet(
-            f"QLabel {{ font-size: 12px; font-weight: 700; "
-            f"color: #92400E; background: transparent; }}"
+            "font-size: 12px; font-weight: 700; "
+            "color: #92400E; background: transparent; border: none;"
         )
         notice_body = QLabel(
             "Changes apply to all new projects. "
@@ -334,8 +336,7 @@ class AdminTemplate(QWidget):
         )
         notice_body.setWordWrap(True)
         notice_body.setStyleSheet(
-            f"QLabel {{ font-size: 11px; color: #78350F; background: transparent; "
-            f"line-height: 1.5; }}"
+            "font-size: 11px; color: #78350F; background: transparent; border: none;"
         )
         notice_v.addWidget(notice_title)
         notice_v.addWidget(notice_body)
@@ -421,6 +422,77 @@ class AdminTemplate(QWidget):
         except Exception as e:
             logger.error(f"Template sync failed for '{change_type}': {e}")
 
+    def _make_drawing_row(self, name: str, substeps_count: int) -> QWidget:
+        """Custom row widget for col1: ⠿ drag handle · name · count badge · 🗑 delete."""
+        w = QWidget()
+        w.setStyleSheet("QWidget { background: transparent; border: none; }")
+        row = QHBoxLayout(w)
+        row.setContentsMargins(12, 10, 8, 10)
+        row.setSpacing(8)
+
+        drag = QLabel("⠿")
+        drag.setStyleSheet(f"color: {T.TEXT_HINT}; font-size: 14px; border: none;")
+        drag.setFixedWidth(16)
+        row.addWidget(drag)
+
+        name_lbl = QLabel(name)
+        name_lbl.setStyleSheet(
+            f"font-size: 13px; font-weight: 500; color: {T.TEXT}; border: none;"
+        )
+        row.addWidget(name_lbl, 1)
+
+        if substeps_count > 0:
+            cnt = QLabel(str(substeps_count))
+            cnt.setStyleSheet(
+                f"font-size: 11px; font-weight: 600; color: {T.TEXT_SEC}; "
+                f"background: {T.BG}; border-radius: 9px; padding: 1px 7px; border: none;"
+            )
+            row.addWidget(cnt)
+
+        del_btn = QPushButton("🗑")
+        del_btn.setCursor(Qt.PointingHandCursor)
+        del_btn.setFixedSize(26, 26)
+        del_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; border: none; font-size: 13px; "
+            f"color: {T.TEXT_HINT}; border-radius: 4px; }}"
+            f"QPushButton:hover {{ background: #fee2e2; color: #dc2626; }}"
+        )
+        # Connect after we have the item reference — patched in load_template
+        del_btn.setProperty("delete_drawing", True)
+        row.addWidget(del_btn)
+        return w
+
+    def _make_substep_row(self, name: str) -> QWidget:
+        """Custom row widget for col2: ⠿ drag handle · name · 🗑 delete."""
+        w = QWidget()
+        w.setStyleSheet("QWidget { background: transparent; border: none; }")
+        row = QHBoxLayout(w)
+        row.setContentsMargins(12, 10, 8, 10)
+        row.setSpacing(8)
+
+        drag = QLabel("⠿")
+        drag.setStyleSheet(f"color: {T.TEXT_HINT}; font-size: 14px; border: none;")
+        drag.setFixedWidth(16)
+        row.addWidget(drag)
+
+        name_lbl = QLabel(name)
+        name_lbl.setStyleSheet(
+            f"font-size: 13px; color: {T.TEXT}; border: none;"
+        )
+        row.addWidget(name_lbl, 1)
+
+        del_btn = QPushButton("🗑")
+        del_btn.setCursor(Qt.PointingHandCursor)
+        del_btn.setFixedSize(26, 26)
+        del_btn.setStyleSheet(
+            f"QPushButton {{ background: transparent; border: none; font-size: 13px; "
+            f"color: {T.TEXT_HINT}; border-radius: 4px; }}"
+            f"QPushButton:hover {{ background: #fee2e2; color: #dc2626; }}"
+        )
+        del_btn.setProperty("delete_substep", True)
+        row.addWidget(del_btn)
+        return w
+
     def load_template(self):
         """Load all drawings from template, sorted by order."""
         self.drawings.clear()
@@ -434,10 +506,17 @@ class AdminTemplate(QWidget):
 
             for order, drawing_id, drawing in drawings_list:
                 substeps_count = len(drawing.get('sub_steps', {}))
-                display_text = f"{drawing['name']}\n{substeps_count} sub-step{'s' if substeps_count != 1 else ''}"
-                item = QListWidgetItem(display_text)
+                item = QListWidgetItem()
                 item.setData(Qt.UserRole, drawing_id)
+                w = self._make_drawing_row(drawing['name'], substeps_count)
+                hint = w.sizeHint()
+                item.setSizeHint(QSize(hint.width(), max(hint.height(), 46)))
                 self.drawings.addItem(item)
+                self.drawings.setItemWidget(item, w)
+                # Wire inline delete button
+                del_btn = w.findChild(QPushButton)
+                if del_btn:
+                    del_btn.clicked.connect(lambda _, did=drawing_id: self._delete_drawing_by_id(did))
 
             logger.info(f"Loaded {len(template)} drawings")
         except Exception as e:
@@ -487,7 +566,7 @@ class AdminTemplate(QWidget):
 
             drawing_name = drawing.get('name', 'Unknown')
             self.drawing_display.setText(drawing_name)
-            self.col2_title.setText(f'Sub-Steps — "{drawing_name}"')
+            self.col2_title.setText(f'Sub-Steps for "{drawing_name}"')
 
             self.substeps.clear()
 
@@ -499,9 +578,17 @@ class AdminTemplate(QWidget):
             substeps_list.sort(key=lambda x: x[0])
 
             for order, step_id, step in substeps_list:
-                step_item = QListWidgetItem(step['name'])
+                step_item = QListWidgetItem()
                 step_item.setData(Qt.UserRole, step_id)
+                sw = self._make_substep_row(step['name'])
+                hint = sw.sizeHint()
+                step_item.setSizeHint(QSize(hint.width(), max(hint.height(), 44)))
                 self.substeps.addItem(step_item)
+                self.substeps.setItemWidget(step_item, sw)
+                # Wire inline delete button
+                del_btn = sw.findChild(QPushButton)
+                if del_btn:
+                    del_btn.clicked.connect(lambda _, sid=step_id: self._delete_substep_by_id(sid))
 
             count = len(substeps)
             self.substep_count_lbl.setText(f"{count} sub-step{'s' if count != 1 else ''}")
@@ -523,9 +610,17 @@ class AdminTemplate(QWidget):
             template = self.fb.get_project_template()
             drawing = template.get(self.selected_drawing_id, {})
             substeps_count = len(drawing.get('sub_steps', {}))
+            # Rebuild the row widget with updated count
             current_item = self.drawings.item(current_row)
-            display_text = f"{drawing['name']}\n{substeps_count} sub-step{'s' if substeps_count != 1 else ''}"
-            current_item.setText(display_text)
+            new_w = self._make_drawing_row(drawing['name'], substeps_count)
+            hint = new_w.sizeHint()
+            current_item.setSizeHint(QSize(hint.width(), max(hint.height(), 46)))
+            self.drawings.setItemWidget(current_item, new_w)
+            did = self.selected_drawing_id
+            del_btn = new_w.findChild(QPushButton)
+            if del_btn:
+                del_btn.clicked.connect(lambda _, d=did: self._delete_drawing_by_id(d))
+
             self.substep_count_lbl.setText(
                 f"{substeps_count} sub-step{'s' if substeps_count != 1 else ''}"
             )
@@ -547,26 +642,28 @@ class AdminTemplate(QWidget):
             self.fb.save_template_drawing(drawing_id, drawing_data)
             logger.info(f"Added drawing: {drawing_id}")
             self.new_draw.clear()
-            display_text = f"{name}\n0 sub-steps"
-            item = QListWidgetItem(display_text)
+            item = QListWidgetItem()
             item.setData(Qt.UserRole, drawing_id)
+            w = self._make_drawing_row(name, 0)
+            hint = w.sizeHint()
+            item.setSizeHint(QSize(hint.width(), max(hint.height(), 46)))
             self.drawings.addItem(item)
+            self.drawings.setItemWidget(item, w)
+            del_btn = w.findChild(QPushButton)
+            if del_btn:
+                del_btn.clicked.connect(lambda _, did=drawing_id: self._delete_drawing_by_id(did))
             self.drawings.setCurrentItem(item)
             self.sync_template_to_projects('add_drawing', drawing_id=drawing_id, drawing_data=drawing_data)
         except Exception as e:
             logger.error(f"Error adding drawing: {str(e)}")
             ModernMessageBox.error(self, "Error", f"Failed to add drawing: {str(e)}")
 
-    def delete_drawing(self):
-        """Delete selected drawing from template."""
-        selected = self.drawings.currentItem()
-        if not selected:
-            ModernMessageBox.warning(self, "No Selection", "Please select a drawing to delete")
-            return
-        drawing_id = selected.data(Qt.UserRole)
-        drawing_name = selected.text().split('\n')[0]
-        if ModernMessageBox.confirm_delete(self, drawing_name):
-            try:
+    def _delete_drawing_by_id(self, drawing_id: str):
+        """Delete a drawing by its ID (called from inline trash button)."""
+        try:
+            template = self.fb.get_project_template()
+            drawing_name = template.get(drawing_id, {}).get('name', 'this drawing')
+            if ModernMessageBox.confirm_delete(self, drawing_name):
                 self.fb.delete_template_drawing(drawing_id)
                 logger.info(f"Deleted drawing: {drawing_id}")
                 self.sync_template_to_projects('delete_drawing', drawing_id=drawing_id)
@@ -577,9 +674,18 @@ class AdminTemplate(QWidget):
                 self.substep_stack.setCurrentIndex(0)
                 self.add_substep_btn.setEnabled(False)
                 self.load_template()
-            except Exception as e:
-                logger.error(f"Error deleting drawing: {str(e)}")
-                ModernMessageBox.error(self, "Error", f"Failed to delete drawing: {str(e)}")
+        except Exception as e:
+            logger.error(f"Error deleting drawing: {str(e)}")
+            ModernMessageBox.error(self, "Error", f"Failed to delete drawing: {str(e)}")
+
+    def delete_drawing(self):
+        """Delete selected drawing from template (called from bottom Delete button)."""
+        selected = self.drawings.currentItem()
+        if not selected:
+            ModernMessageBox.warning(self, "No Selection", "Please select a drawing to delete")
+            return
+        drawing_id = selected.data(Qt.UserRole)
+        self._delete_drawing_by_id(drawing_id)
 
     def add_substep(self):
         """Add a new sub-step and immediately show it without full reload."""
@@ -600,9 +706,16 @@ class AdminTemplate(QWidget):
             self.fb.add_template_substep(self.selected_drawing_id, step_id, step_data)
             logger.info(f"Added sub-step: {step_id}")
             self.substep_name.clear()
-            step_item = QListWidgetItem(name)
+            step_item = QListWidgetItem()
             step_item.setData(Qt.UserRole, step_id)
+            sw = self._make_substep_row(name)
+            hint = sw.sizeHint()
+            step_item.setSizeHint(QSize(hint.width(), max(hint.height(), 44)))
             self.substeps.addItem(step_item)
+            self.substeps.setItemWidget(step_item, sw)
+            del_btn = sw.findChild(QPushButton)
+            if del_btn:
+                del_btn.clicked.connect(lambda _, sid=step_id: self._delete_substep_by_id(sid))
             self.update_drawing_substep_count()
             self.sync_template_to_projects('add_substep', drawing_id=self.selected_drawing_id,
                                            step_id=step_id, step_data=step_data)
@@ -610,8 +723,28 @@ class AdminTemplate(QWidget):
             logger.error(f"Error adding sub-step: {str(e)}")
             ModernMessageBox.error(self, "Error", f"Failed to add sub-step: {str(e)}")
 
+    def _delete_substep_by_id(self, step_id: str):
+        """Delete a sub-step by ID (called from inline trash button)."""
+        try:
+            template = self.fb.get_project_template()
+            drawing = template.get(self.selected_drawing_id, {})
+            step_name = drawing.get('sub_steps', {}).get(step_id, {}).get('name', 'this step')
+            if ModernMessageBox.confirm_delete(self, step_name):
+                self.fb.delete_template_substep(self.selected_drawing_id, step_id)
+                logger.info(f"Deleted sub-step: {step_id}")
+                for i in range(self.substeps.count()):
+                    if self.substeps.item(i).data(Qt.UserRole) == step_id:
+                        self.substeps.takeItem(i)
+                        break
+                self.update_drawing_substep_count()
+                self.sync_template_to_projects('delete_substep', drawing_id=self.selected_drawing_id,
+                                               step_id=step_id)
+        except Exception as e:
+            logger.error(f"Error deleting sub-step: {str(e)}")
+            ModernMessageBox.error(self, "Error", f"Failed to delete sub-step: {str(e)}")
+
     def delete_substep(self):
-        """Delete selected sub-step without full reload."""
+        """Delete selected sub-step without full reload (bottom Delete button fallback)."""
         if not self.selected_drawing_id:
             ModernMessageBox.warning(self, "No Drawing Selected", "Please select a drawing first")
             return
@@ -620,16 +753,4 @@ class AdminTemplate(QWidget):
             ModernMessageBox.warning(self, "No Selection", "Please select a sub-step to delete")
             return
         step_id = selected.data(Qt.UserRole)
-        step_name = selected.text()
-        if ModernMessageBox.confirm_delete(self, step_name):
-            try:
-                self.fb.delete_template_substep(self.selected_drawing_id, step_id)
-                logger.info(f"Deleted sub-step: {step_id}")
-                row = self.substeps.row(selected)
-                self.substeps.takeItem(row)
-                self.update_drawing_substep_count()
-                self.sync_template_to_projects('delete_substep', drawing_id=self.selected_drawing_id,
-                                               step_id=step_id)
-            except Exception as e:
-                logger.error(f"Error deleting sub-step: {str(e)}")
-                ModernMessageBox.error(self, "Error", f"Failed to delete sub-step: {str(e)}")
+        self._delete_substep_by_id(step_id)

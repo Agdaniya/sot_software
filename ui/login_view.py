@@ -311,7 +311,7 @@ class LoginView(QWidget):
     # ── Login logic ───────────────────────────────────────────────────────────
     def handle_login(self):
         email    = self.email_input.text().strip()
-        password = self.password_input.text().strip()
+        password = self.password_input.text()          # do NOT strip — passwords may contain spaces
 
         if not email or not password:
             self.error_label.setText("Email and password are required.")
@@ -323,8 +323,15 @@ class LoginView(QWidget):
         self.error_label.hide()
 
         try:
-            user_data = self.auth.sign_in(email, password)
+            # ── Step 1: authenticate with Firebase Auth ──────────────────────
+            try:
+                user_data = self.auth.sign_in(email, password)
+            except Exception as auth_err:
+                self.error_label.setText("Incorrect email or password. Please try again.")
+                self.error_label.show()
+                return
 
+            # ── Step 2: load the user profile from the Realtime Database ─────
             from services.firebase_client import FirebaseClient
             fb = FirebaseClient()
 
@@ -336,7 +343,7 @@ class LoginView(QWidget):
                     break
 
             if not current_user:
-                self.error_label.setText("User profile not found.")
+                self.error_label.setText("User profile not found. Please contact your administrator.")
                 self.error_label.show()
                 return
 
@@ -365,8 +372,8 @@ class LoginView(QWidget):
 
             self.login_success.emit(current_user)
 
-        except Exception:
-            self.error_label.setText("Incorrect email or password. Please try again.")
+        except Exception as e:
+            self.error_label.setText(f"Login error: {str(e)}")
             self.error_label.show()
         finally:
             self.login_button.setText("Sign In")

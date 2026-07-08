@@ -56,26 +56,18 @@ class SuperAdminUsers(QWidget):
         left.setSpacing(0)
 
         left_hdr = QFrame()
-        left_hdr.setFixedHeight(52)
+        left_hdr.setFixedHeight(56)
         left_hdr.setStyleSheet(
             f"QFrame {{ background: {T.SURFACE}; border: none; "
             f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
         )
         lh = QHBoxLayout(left_hdr)
-        lh.setContentsMargins(16, 0, 16, 0)
+        lh.setContentsMargins(20, 0, 20, 0)
         lh_t = QLabel("New User")
         lh_t.setStyleSheet(
-            f"QLabel {{ font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
+            f"font-size: 15px; font-weight: 700; color: {T.TEXT};"
         )
-        lh_s = QLabel("Create a staff account")
-        lh_s.setStyleSheet(
-            f"QLabel {{ font-size: 11px; color: {T.TEXT_SEC}; background: transparent; }}"
-        )
-        lhv = QVBoxLayout()
-        lhv.setSpacing(1)
-        lhv.addWidget(lh_t)
-        lhv.addWidget(lh_s)
-        lh.addLayout(lhv)
+        lh.addWidget(lh_t)
         left.addWidget(left_hdr)
 
         form_area = QWidget()
@@ -150,21 +142,22 @@ class SuperAdminUsers(QWidget):
         right.setSpacing(0)
 
         list_hdr = QFrame()
-        list_hdr.setFixedHeight(52)
+        list_hdr.setFixedHeight(56)
         list_hdr.setStyleSheet(
             f"QFrame {{ background: {T.SURFACE}; border: none; "
             f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
         )
         rh = QHBoxLayout(list_hdr)
-        rh.setContentsMargins(16, 0, 16, 0)
+        rh.setContentsMargins(20, 0, 16, 0)
+        rh.setSpacing(8)
         self.right_title = QLabel("Users")
         self.right_title.setStyleSheet(
-            f"QLabel {{ font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
+            f"font-size: 15px; font-weight: 700; color: {T.TEXT};"
         )
         self.user_count_lbl = QLabel("0")
         self.user_count_lbl.setStyleSheet(
-            f"QLabel {{ background: {T.ACCENT_BG}; color: {T.TEXT_SEC}; border-radius: 10px; "
-            f"padding: 1px 7px; font-size: 11px; font-weight: 600; font-family: monospace; }}"
+            f"background: {T.BG}; color: {T.TEXT_SEC}; border-radius: 10px; "
+            f"padding: 2px 8px; font-size: 11px; font-weight: 600;"
         )
 
         # Action buttons in header
@@ -217,7 +210,14 @@ class SuperAdminUsers(QWidget):
         right.addWidget(search_frame)
 
         self.users_list = QListWidget()
-        self.users_list.setStyleSheet(T.list_widget())
+        self.users_list.setStyleSheet(
+            f"QListWidget {{ border: none; background: {T.BG}; outline: none; }}"
+            f"QListWidget::item {{ padding: 0; border: none; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; background: {T.BG}; }}"
+            f"QListWidget::item:hover {{ background: {T.SURFACE}; }}"
+            f"QListWidget::item:selected {{ background: #f0f6ff; "
+            f"border-left: 3px solid #3b82f6; }}"
+        )
         self.users_list.itemClicked.connect(self.on_user_selected)
         right.addWidget(self.users_list, 1)
 

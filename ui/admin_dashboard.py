@@ -85,7 +85,7 @@ def make_topbar(parent_widget, user, on_logout, show_back=False, back_title=""):
         h.addSpacing(14)
 
     if on_logout:
-        logout_btn = QPushButton("Sign out")
+        logout_btn = QPushButton("⇥  Sign out")
         logout_btn.setCursor(Qt.PointingHandCursor)
         logout_btn.setFixedHeight(30)
         logout_btn.setStyleSheet(
@@ -249,7 +249,7 @@ class NavCard(QFrame):
             f"border-radius: {T.RADIUS}; }}"
         )
         self._hover = (
-            f"QFrame {{ background: {T.SURFACE}; border: 1px solid #C0C0C8; "
+            f"QFrame {{ background: {T.BG}; border: 1px solid #C0C0C8; "
             f"border-radius: {T.RADIUS}; }}"
         )
         self.setStyleSheet(self._normal)
@@ -257,30 +257,31 @@ class NavCard(QFrame):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
-        layout.setSpacing(8)
+        layout.setSpacing(10)
 
-        # Abbr bubble — light tinted background
+        # Abbr bubble — solid filled square with white text
         bubble = QLabel(abbr)
-        bubble.setFixedSize(36, 36)
+        bubble.setFixedSize(44, 44)
         bubble.setAlignment(Qt.AlignCenter)
         bubble.setStyleSheet(
-            f"QLabel {{ background: {T.BG}; color: {accent_color}; "
-            f"border: 1px solid {T.BORDER_SOLID}; "
-            f"border-radius: 8px; font-size: 11px; font-weight: 700; }}"
+            f"QLabel {{ background: {accent_color}; color: white; "
+            f"border: none; "
+            f"border-radius: 10px; font-size: 12px; font-weight: 700; }}"
         )
 
         title_lbl = QLabel(title)
         title_lbl.setStyleSheet(
-            f"QLabel {{ font-size: 13px; font-weight: 600; color: {T.TEXT}; background: transparent; }}"
+            f"QLabel {{ font-size: 14px; font-weight: 700; color: {T.TEXT}; background: transparent; border: none; }}"
         )
 
         desc_lbl = QLabel(description)
         desc_lbl.setStyleSheet(
-            f"QLabel {{ font-size: 11px; color: {T.TEXT_SEC}; background: transparent; }}"
+            f"QLabel {{ font-size: 12px; color: {T.TEXT_SEC}; background: transparent; border: none; }}"
         )
         desc_lbl.setWordWrap(True)
 
         layout.addWidget(bubble)
+        layout.addSpacing(2)
         layout.addWidget(title_lbl)
         layout.addWidget(desc_lbl)
         layout.addStretch()
@@ -353,16 +354,16 @@ class AdminDashboard(QWidget):
         grid.setSpacing(12)
 
         cards = [
-            ("PR", "Projects",        "Create, assign and manage all projects",       T.ACCENT,   self.open_projects),
-            ("RD", "Review Drawings", "Approve or reject submitted drawings",          "#6D28D9",  self.open_review),
-            ("ER", "Employee Report", "Download login/logout & hours report",          "#16A34A",  self.download_employee_report),
-            ("PR", "Project Report",  "Status overview with payment tracking",         "#0F766E",  self.download_project_report),
+            ("PR", "Projects",        "Create and manage projects, assign team members.",              "#4f46e5",  self.open_projects),
+            ("RD", "Review Drawings", "Review submitted drawings — approve or reject with feedback.",  "#7c3aed",  self.open_review),
+            ("ER", "Employee Report", "Export a date-range Excel report of employee activity.",        "#d97706",  self.download_employee_report),
+            ("PR", "Project Report",  "Download an Excel summary of all projects and drawing statuses.", "#0f766e", self.download_project_report),
         ]
 
         if self.user["role"] == "super_admin":
             cards += [
-                ("US", "Users",    "Create and manage user accounts",      "#D97706", self.open_users),
-                ("TM", "Template", "Edit the default drawing template",    "#D4183D", self.open_template),
+                ("US", "Users",    "Create and manage user accounts.",         "#d97706", self.open_users),
+                ("TM", "Template", "Edit the default drawing template.",        "#dc2626", self.open_template),
             ]
 
         cols = 3

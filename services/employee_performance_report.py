@@ -1,209 +1,385 @@
 from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+from openpyxl.styles import (
+    Font, Alignment, PatternFill, Border, Side, GradientFill
+)
+from openpyxl.utils import get_column_letter
 from datetime import datetime
 from services.firebase_client import FirebaseClient
 from utils.logger import logger
 import os
 
 
+# ── Output directory ──────────────────────────────────────────────────────────
+
 def get_reports_directory():
     try:
-        documents = os.path.join(os.path.expanduser('~'), 'Documents')
-        reports_dir = os.path.join(documents, 'SOT_Reports')
-        if not os.path.exists(reports_dir):
-            os.makedirs(reports_dir)
-        return reports_dir
-    except Exception as e:
-        logger.warning(f"Could not use Documents folder: {e}, falling back to home directory")
-        home_reports = os.path.join(os.path.expanduser('~'), 'SOT_Reports')
-        if not os.path.exists(home_reports):
-            os.makedirs(home_reports)
-        return home_reports
+        documents = os.path.join(os.path.expanduser("~"), "Documents")
+        d = os.path.join(documents, "SOT_Reports")
+        os.makedirs(d, exist_ok=True)
+        return d
+    except Exception:
+        d = os.path.join(os.path.expanduser("~"), "SOT_Reports")
+        os.makedirs(d, exist_ok=True)
+        return d
 
 
-# ── Shared palette (calm, professional) ───────────────────────────────────────
+# ── Design tokens ─────────────────────────────────────────────────────────────
 
-def fill(hex_color):
+def F(hex_color):
     return PatternFill(start_color=hex_color, end_color=hex_color, fill_type="solid")
 
-CHARCOAL   = fill("2d3748")   # primary header
-DARK_SLATE = fill("3d4f63")   # section header A
-STEEL      = fill("4a5568")   # section header B
-MIST       = fill("f7f9fb")   # meta / summary rows
-ROW_WHITE  = fill("ffffff")
-ROW_ALT    = fill("f4f6f8")
+# Core palette — matches SOT app design system
+NAVY        = F("1e2a3a")   # primary accent (topbar / buttons)
+NAVY_LIGHT  = F("253447")   # slightly lighter navy for section dividers
+SURFACE     = F("FFFFFF")   # white
+BG          = F("F7F8FA")   # page background tint
+BG_ALT      = F("EEF1F5")   # alternating row tint
+BORDER_COL  = F("E5E7EB")   # border colour
+MUTED_ROW   = F("F0F4F8")   # meta / summary highlight
 
-STATUS_FILL = {
-    "not_started":     fill("edf0f2"),
-    "in_progress":     fill("fef9ec"),
-    "submitted":       fill("ede9fe"),
-    "admin_rejected":  fill("fdf0f0"),
-    "admin_approved":  fill("edfaf3"),
-    "client_approved": fill("e6f4ef"),
+# Status colours
+S_FILL = {
+    "not_started":     F("F3F4F6"),
+    "in_progress":     F("FEF9C3"),
+    "submitted":       F("EDE9FE"),
+    "admin_rejected":  F("FFE4E6"),
+    "admin_approved":  F("CCFBF1"),
+    "client_approved": F("CCFBF1"),
+    "completed":       F("CCFBF1"),
 }
-STATUS_COLOR = {
-    "not_started":     "6b7a8d",
-    "in_progress":     "8a6800",
-    "submitted":       "5b21b6",
-    "admin_rejected":  "9b1c1c",
-    "admin_approved":  "1a6b43",
-    "client_approved": "065f46",
+S_FONT = {
+    "not_started":     "6B7280",
+    "in_progress":     "92400E",
+    "submitted":       "5B21B6",
+    "admin_rejected":  "BE123C",
+    "admin_approved":  "0F766E",
+    "client_approved": "0F766E",
+    "completed":       "0F766E",
+}
+S_LABEL = {
+    "not_started":     "Not Started",
+    "in_progress":     "In Progress",
+    "submitted":       "Submitted",
+    "admin_rejected":  "Rejected",
+    "admin_approved":  "Admin Approved",
+    "client_approved": "Client Approved",
+    "completed":       "Completed",
 }
 
-NO_BORDER   = Border()
-BOTTOM_LINE = Border(bottom=Side(style="thin", color="dde3ea"))
+NO_BORDER    = Border()
+THIN         = Side(style="thin",   color="E5E7EB")
+THICK_BOTTOM = Side(style="medium", color="1e2a3a")
+ROW_BORDER   = Border(bottom=THIN)
+SECTION_BORDER = Border(bottom=Side(style="thin", color="1e2a3a"))
 
-NCOLS = 10   # columns A–J
+NCOLS = 9   # A–I
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
+# ── Low-level helpers ─────────────────────────────────────────────────────────
 
-def _blank(ws, row, bg=None, border=BOTTOM_LINE):
+def _fill_row(ws, row, bg, border=ROW_BORDER):
     for col in range(1, NCOLS + 1):
         c = ws.cell(row=row, column=col)
-        c.border = border
-        if bg:
-            c.fill = bg
-
-
-def _c(ws, row, col, value="", fg="2d3748", size=10, bold=False,
-       italic=False, bg=None, border=BOTTOM_LINE, ah="left", av="center"):
-    c = ws.cell(row=row, column=col, value=value)
-    c.font      = Font(bold=bold, italic=italic, color=fg, size=size, name="Arial")
-    c.alignment = Alignment(horizontal=ah, vertical=av)
-    c.border    = border
-    if bg:
         c.fill = bg
+        c.border = border
+
+
+def _cell(ws, row, col, value="", fg="1F2328", size=10, bold=False,
+          italic=False, bg=SURFACE, border=ROW_BORDER,
+          ah="left", av="center", wrap=False):
+    c = ws.cell(row=row, column=col, value=value)
+    c.font      = Font(name="Calibri", bold=bold, italic=italic,
+                       color=fg, size=size)
+    c.alignment = Alignment(horizontal=ah, vertical=av, wrap_text=wrap)
+    c.border    = border
+    c.fill      = bg
     return c
 
 
-def _emp_header(ws, row, username):
-    _blank(ws, row, bg=CHARCOAL, border=NO_BORDER)
-    c = ws.cell(row=row, column=1, value=f"  {username.upper()}")
-    c.fill = CHARCOAL
-    c.font = Font(bold=True, color="FFFFFF", size=12, name="Arial")
-    c.alignment = Alignment(vertical="center", horizontal="left")
-    c.border = NO_BORDER
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NCOLS)
-    ws.row_dimensions[row].height = 26
+def _merge(ws, row, c1, c2):
+    ws.merge_cells(start_row=row, start_column=c1,
+                   end_row=row,   end_column=c2)
 
 
-def _meta(ws, row, email, role):
-    _blank(ws, row, bg=MIST, border=NO_BORDER)
-    c1 = ws.cell(row=row, column=1, value=f"  {email}")
-    c1.fill = MIST; c1.font = Font(color="6b7a8d", size=9, name="Arial", italic=True)
-    c1.alignment = Alignment(vertical="center"); c1.border = NO_BORDER
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=5)
-    c2 = ws.cell(row=row, column=6, value=role)
-    c2.fill = MIST; c2.font = Font(color="6b7a8d", size=9, name="Arial", italic=True)
-    c2.alignment = Alignment(horizontal="right", vertical="center"); c2.border = NO_BORDER
-    ws.merge_cells(start_row=row, start_column=6, end_row=row, end_column=NCOLS)
-    ws.row_dimensions[row].height = 17
-    ws.row_dimensions[row].outline_level = 1
+# ── Block builders ────────────────────────────────────────────────────────────
+
+def _cover_block(ws, row, title, subtitle, generated_on, date_range_str):
+    """Full-width cover header for the sheet."""
+    # Tall navy banner
+    _fill_row(ws, row, NAVY, NO_BORDER)
+    _fill_row(ws, row + 1, NAVY, NO_BORDER)
+    _fill_row(ws, row + 2, NAVY, NO_BORDER)
+    ws.row_dimensions[row].height     = 10
+    ws.row_dimensions[row + 1].height = 32
+    ws.row_dimensions[row + 2].height = 22
+
+    c = _cell(ws, row + 1, 2, title, fg="FFFFFF", size=16, bold=True,
+              bg=NAVY, border=NO_BORDER)
+    _merge(ws, row + 1, 2, NCOLS)
+
+    c2 = _cell(ws, row + 2, 2, subtitle, fg="94A3B8", size=10,
+               bg=NAVY, border=NO_BORDER)
+    _merge(ws, row + 2, 2, NCOLS)
+
+    # Thin accent line
+    _fill_row(ws, row + 3, F("3B82F6"), NO_BORDER)
+    ws.row_dimensions[row + 3].height = 3
+
+    # Meta row
+    _fill_row(ws, row + 4, MUTED_ROW, NO_BORDER)
+    _cell(ws, row + 4, 2, f"Generated: {generated_on}",
+          fg="64748B", size=9, bg=MUTED_ROW, border=NO_BORDER)
+    _merge(ws, row + 4, 2, 5)
+    dr = _cell(ws, row + 4, 6, date_range_str,
+               fg="64748B", size=9, bg=MUTED_ROW,
+               border=NO_BORDER, ah="right")
+    _merge(ws, row + 4, 6, NCOLS)
+    ws.row_dimensions[row + 4].height = 18
+
+    _fill_row(ws, row + 5, SURFACE, NO_BORDER)
+    ws.row_dimensions[row + 5].height = 8
+    return row + 6
 
 
-def _sec_hdr(ws, row, label, bg_fill, outline_level=1):
-    _blank(ws, row, bg=bg_fill, border=NO_BORDER)
-    c = ws.cell(row=row, column=1, value=f"  {label}")
-    c.fill = bg_fill; c.font = Font(bold=True, color="FFFFFF", size=10, name="Arial")
-    c.alignment = Alignment(vertical="center", horizontal="left"); c.border = NO_BORDER
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NCOLS)
+def _employee_banner(ws, row, username, email, role):
+    """Navy band with employee name + right-aligned email / role."""
+    _fill_row(ws, row, NAVY_LIGHT, NO_BORDER)
+    _cell(ws, row, 2, username.upper(), fg="FFFFFF", size=11, bold=True,
+          bg=NAVY_LIGHT, border=NO_BORDER)
+    _merge(ws, row, 2, 5)
+    info = f"{email}   ·   {role}"
+    _cell(ws, row, 6, info, fg="94A3B8", size=9,
+          bg=NAVY_LIGHT, border=NO_BORDER, ah="right")
+    _merge(ws, row, 6, NCOLS)
+    ws.row_dimensions[row].height = 24
+    return row + 1
+
+
+def _section_label(ws, row, text, col_start=2):
+    """Small ALL-CAPS section label with a bottom accent line."""
+    _fill_row(ws, row, SURFACE, NO_BORDER)
+    _cell(ws, row, col_start, text.upper(),
+          fg="64748B", size=8, bold=True, bg=SURFACE,
+          border=Border(bottom=Side(style="thin", color="3B82F6")))
+    _merge(ws, row, col_start, NCOLS)
     ws.row_dimensions[row].height = 20
-    ws.row_dimensions[row].outline_level = outline_level
+    return row + 1
 
 
-def _col_hdrs(ws, row, cols_map, hidden=True):
-    _blank(ws, row, bg=fill("edf0f2"), border=BOTTOM_LINE)
-    for col, label in cols_map.items():
-        c = ws.cell(row=row, column=col, value=label)
-        c.fill = fill("edf0f2"); c.font = Font(bold=True, color="6b7a8d", size=9, name="Arial")
-        c.alignment = Alignment(horizontal="center", vertical="center"); c.border = BOTTOM_LINE
-    ws.row_dimensions[row].height = 17
-    ws.row_dimensions[row].outline_level = 2
-    ws.row_dimensions[row].hidden = hidden
+def _col_headers(ws, row, headers: dict):
+    """Light gray column header row."""
+    _fill_row(ws, row, BG, ROW_BORDER)
+    for col, label in headers.items():
+        _cell(ws, row, col, label, fg="6B7280", size=9, bold=True,
+              bg=BG, border=ROW_BORDER, ah="center")
+    ws.row_dimensions[row].height = 18
+    return row + 1
 
 
-def _summary(ws, row, text, outline_level=1):
-    _blank(ws, row, bg=MIST, border=NO_BORDER)
-    c = ws.cell(row=row, column=1, value=f"  {text}")
-    c.fill = MIST; c.font = Font(bold=True, color="4a5568", size=9, name="Arial")
-    c.alignment = Alignment(vertical="center", horizontal="left"); c.border = NO_BORDER
-    ws.merge_cells(start_row=row, start_column=1, end_row=row, end_column=NCOLS)
-    ws.row_dimensions[row].height = 17
-    ws.row_dimensions[row].outline_level = outline_level
-
-
-def _spacer(ws, row):
-    _blank(ws, row, bg=fill("e8ecf0"), border=NO_BORDER)
-    ws.row_dimensions[row].height = 10
-
-
-def _status_chip(ws, row, col, status_key):
-    c = ws.cell(row=row, column=col, value=status_key.replace("_", " ").title())
-    c.fill = STATUS_FILL.get(status_key, fill("edf0f2"))
-    c.font = Font(bold=True, color=STATUS_COLOR.get(status_key, "6b7a8d"), size=9, name="Arial")
+def _status_cell(ws, row, col, status_key, bg_row):
+    label = S_LABEL.get(status_key, status_key.replace("_", " ").title())
+    c = ws.cell(row=row, column=col, value=label)
+    c.fill      = S_FILL.get(status_key, BG)
+    c.font      = Font(name="Calibri", bold=True, size=9,
+                       color=S_FONT.get(status_key, "6B7280"))
     c.alignment = Alignment(horizontal="center", vertical="center")
-    c.border = BOTTOM_LINE
+    c.border    = ROW_BORDER
 
 
-def _pay_chip(ws, row, col, pay_txt, paid):
+def _pay_cell(ws, row, col, pay_txt, paid, bg_row):
     c = ws.cell(row=row, column=col, value=pay_txt)
     if pay_txt == "—":
-        c.fill = ROW_WHITE; c.font = Font(color="9eaab8", size=9, name="Arial")
+        c.fill = bg_row
+        c.font = Font(name="Calibri", color="9CA3AF", size=9)
     elif paid:
-        c.fill = fill("e6f4ef"); c.font = Font(bold=True, color="065f46", size=9, name="Arial")
+        c.fill = F("CCFBF1")
+        c.font = Font(name="Calibri", bold=True, color="0F766E", size=9)
     else:
-        c.fill = fill("fdf0f0"); c.font = Font(bold=True, color="9b1c1c", size=9, name="Arial")
+        c.fill = F("FFE4E6")
+        c.font = Font(name="Calibri", bold=True, color="BE123C", size=9)
     c.alignment = Alignment(horizontal="center", vertical="center")
-    c.border = BOTTOM_LINE
+    c.border    = ROW_BORDER
 
 
-# ── Main report ────────────────────────────────────────────────────────────────
+def _summary_bar(ws, row, text):
+    _fill_row(ws, row, MUTED_ROW, NO_BORDER)
+    _cell(ws, row, 2, text, fg="374151", size=9, bold=True,
+          bg=MUTED_ROW, border=NO_BORDER)
+    _merge(ws, row, 2, NCOLS)
+    ws.row_dimensions[row].height = 18
+    return row + 1
+
+
+def _gap(ws, row, height=10):
+    _fill_row(ws, row, SURFACE, NO_BORDER)
+    ws.row_dimensions[row].height = height
+    return row + 1
+
+
+def _divider(ws, row):
+    _fill_row(ws, row, F("E5E7EB"), NO_BORDER)
+    ws.row_dimensions[row].height = 2
+    return row + 1
+
+
+# ── Main report ───────────────────────────────────────────────────────────────
 
 def generate_employee_performance_report(start_date=None, end_date=None):
-    """
-    Employee performance report — grouped, collapsible, calm palette.
-    Detail rows (level 2) start hidden. Expand with Excel's [+] buttons.
-    """
-    fb = FirebaseClient()
+    fb           = FirebaseClient()
     users        = fb.root.child("users").get()         or {}
     logs         = fb.root.child("activity_logs").get() or {}
     projects_all = fb.root.child("projects").get()      or {}
     drawings_all = fb.root.child("drawings").get()      or {}
 
-    valid_user_ids = set(users.keys())
-
     wb = Workbook()
-    ws = wb.active
-    ws.title = "Employee Report"
+
+    # ── Sheet 1: Summary ──────────────────────────────────────────────────────
+    ws_sum = wb.active
+    ws_sum.title = "Summary"
+    ws_sum.sheet_view.showGridLines = False
+
+    for letter, width in {
+        "A": 2, "B": 26, "C": 14, "D": 14,
+        "E": 14, "F": 14, "G": 14, "H": 14, "I": 14,
+    }.items():
+        ws_sum.column_dimensions[letter].width = width
+
+    now_str    = datetime.now().strftime("%B %d, %Y  %H:%M")
+    dr_str     = ""
+    if start_date and end_date:
+        dr_str = f"Period: {start_date}  →  {end_date}"
+    elif start_date:
+        dr_str = f"From: {start_date}"
+    elif end_date:
+        dr_str = f"Until: {end_date}"
+    else:
+        dr_str = "All time"
+
+    srow = _cover_block(ws_sum, 1,
+                        "Employee Performance Report",
+                        "Staff Operations Tracker  ·  SOT",
+                        now_str, dr_str)
+
+    # Column headers
+    srow = _col_headers(ws_sum, srow, {
+        2: "Employee", 3: "Role",
+        4: "Days Worked", 5: "Total Hours", 6: "Avg Hours/Day",
+        7: "Total Drawings", 8: "In Progress", 9: "Submitted",
+    })
+
+    sorted_users = sorted(
+        [(uid, u) for uid, u in users.items()],
+        key=lambda x: x[1].get("username", "").lower()
+    )
+
+    for idx, (user_id, user) in enumerate(sorted_users):
+        username = user.get("username", "Unknown")
+        role     = user.get("role", "").replace("_", " ").title()
+
+        # Attendance totals
+        user_logs = logs.get(user_id, {}) or {}
+        if not isinstance(user_logs, dict):
+            user_logs = {}
+        th = tm = days = 0
+        for log_date, entry in user_logs.items():
+            if start_date and log_date < start_date: continue
+            if end_date   and log_date > end_date:   continue
+            hw = entry.get("total_hours", "N/A")
+            if hw not in ("N/A", "—", None):
+                try:
+                    h, m = str(hw).split(":")
+                    th += int(h); tm += int(m); days += 1
+                except Exception:
+                    pass
+        extra = tm // 60; rem = tm % 60; total_h = th + extra
+        hours_str = f"{total_h}h {rem:02d}m" if days else "—"
+        avg_str   = f"{round(total_h / days, 1)}h" if days else "—"
+
+        # Drawing counts
+        counts = {"in_progress": 0, "submitted": 0, "total": 0}
+        for proj in projects_all.values():
+            if user_id not in proj.get("assigned_users", {}):
+                continue
+            for d in drawings_all.get(
+                    next((pid for pid, p in projects_all.items() if p is proj), ""), {}
+            ).values():
+                pass
+        # cleaner loop
+        for project_id, project in projects_all.items():
+            if user_id not in project.get("assigned_users", {}):
+                continue
+            for drawing in drawings_all.get(project_id, {}).values():
+                s = drawing.get("status", "")
+                counts["total"] += 1
+                if s == "in_progress":  counts["in_progress"] += 1
+                if s == "submitted":    counts["submitted"]   += 1
+
+        bg = BG_ALT if idx % 2 else SURFACE
+        _fill_row(ws_sum, srow, bg, ROW_BORDER)
+        _cell(ws_sum, srow, 2, username,       fg="1F2328", size=10, bold=True, bg=bg)
+        _cell(ws_sum, srow, 3, role,           fg="6B7280", size=9,  bg=bg, ah="center")
+        _cell(ws_sum, srow, 4, days or "—",    fg="374151", size=10, bg=bg, ah="center")
+        _cell(ws_sum, srow, 5, hours_str,      fg="374151", size=10, bg=bg, ah="center")
+        _cell(ws_sum, srow, 6, avg_str,        fg="374151", size=10, bg=bg, ah="center")
+        _cell(ws_sum, srow, 7, counts["total"] or "—",
+              fg="374151", size=10, bg=bg, ah="center")
+
+        c_ip = counts["in_progress"]
+        c_sb = counts["submitted"]
+        ip_bg = F("FEF9C3") if c_ip else bg
+        sb_bg = F("EDE9FE") if c_sb else bg
+        c = ws_sum.cell(row=srow, column=8, value=c_ip or "—")
+        c.fill = ip_bg
+        c.font = Font(name="Calibri", bold=bool(c_ip),
+                      color="92400E" if c_ip else "9CA3AF", size=10)
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = ROW_BORDER
+
+        c = ws_sum.cell(row=srow, column=9, value=c_sb or "—")
+        c.fill = sb_bg
+        c.font = Font(name="Calibri", bold=bool(c_sb),
+                      color="5B21B6" if c_sb else "9CA3AF", size=10)
+        c.alignment = Alignment(horizontal="center", vertical="center")
+        c.border = ROW_BORDER
+
+        ws_sum.row_dimensions[srow].height = 20
+        srow += 1
+
+    # ── Sheet 2: Detail ───────────────────────────────────────────────────────
+    ws = wb.create_sheet(title="Detail")
     ws.sheet_view.showGridLines = False
     ws.sheet_properties.outlinePr.summaryBelow = False
     ws.sheet_properties.outlinePr.summaryRight = False
 
     for letter, width in {
-        "A": 3, "B": 22, "C": 22, "D": 22,
-        "E": 13, "F": 11, "G": 11, "H": 13, "I": 13, "J": 10
+        "A": 2, "B": 24, "C": 20, "D": 14,
+        "E": 12, "F": 12, "G": 14, "H": 16, "I": 12,
     }.items():
         ws.column_dimensions[letter].width = width
 
-    row = 1
-    sorted_users = sorted(
-        [(uid, u) for uid, u in users.items() if uid in valid_user_ids],
-        key=lambda x: x[1].get("username", "").lower()
-    )
+    row = _cover_block(ws, 1,
+                       "Employee Performance — Detail",
+                       "Attendance logs and drawing assignments per employee",
+                       now_str, dr_str)
+
+    STATUS_ORDER = {
+        "in_progress": 0, "admin_rejected": 1, "not_started": 2,
+        "submitted": 3, "admin_approved": 4, "client_approved": 5,
+    }
 
     for user_id, user in sorted_users:
         username = user.get("username", "Unknown")
         email    = user.get("email", "")
         role     = user.get("role", "").replace("_", " ").title()
 
-        _emp_header(ws, row, username);  row += 1
-        _meta(ws, row, email, role);     row += 1
+        row = _employee_banner(ws, row, username, email, role)
 
-        # ── ATTENDANCE ──────────────────────────────────────────────────────
-        _sec_hdr(ws, row, "Attendance Log", DARK_SLATE, outline_level=1); row += 1
-        _col_hdrs(ws, row, {2: "Date", 3: "Login", 4: "Logout",
-                             5: "Hours", 6: "Status"}, hidden=True);      row += 1
+        # ── Attendance ────────────────────────────────────────────────────
+        row = _section_label(ws, row, "Attendance Log")
+        row = _col_headers(ws, row, {
+            2: "Date", 3: "Login", 4: "Logout",
+            5: "Hours Worked", 6: "Status",
+        })
 
         user_logs = logs.get(user_id, {}) or {}
         if not isinstance(user_logs, dict):
@@ -212,75 +388,70 @@ def generate_employee_performance_report(start_date=None, end_date=None):
         total_hours = total_mins = days_worked = 0
         has_att = False
 
-        for idx, log_date in enumerate(sorted(user_logs.keys())):
+        for a_idx, log_date in enumerate(sorted(user_logs.keys())):
             if start_date and log_date < start_date: continue
             if end_date   and log_date > end_date:   continue
-
             entry        = user_logs[log_date]
             login        = entry.get("login_time",  "—")
             logout       = entry.get("logout_time", "—")
             hours_worked = entry.get("total_hours", "—")
 
-            if logout == "—":
-                s_txt = "Active";     s_bg = fill("fef9ec"); s_fg = "8a6800"
-            elif hours_worked not in ("—", "N/A"):
-                s_txt = "Complete";   s_bg = fill("e6f4ef"); s_fg = "065f46"
+            if logout == "—" or logout is None:
+                s_txt = "Active";     s_bg = F("FEF9C3"); s_fg = "92400E"
+            elif hours_worked not in ("—", "N/A", None):
+                s_txt = "Complete";   s_bg = F("CCFBF1"); s_fg = "0F766E"
             else:
-                s_txt = "Incomplete"; s_bg = fill("fdf0f0"); s_fg = "9b1c1c"
+                s_txt = "Incomplete"; s_bg = F("FFE4E6"); s_fg = "BE123C"
 
-            if hours_worked not in ("—", "N/A"):
+            if hours_worked not in ("—", "N/A", None):
                 try:
-                    h, m = hours_worked.split(":")
+                    h, m = str(hours_worked).split(":")
                     total_hours += int(h); total_mins += int(m); days_worked += 1
                 except Exception:
                     pass
 
-            rb = ROW_ALT if idx % 2 else ROW_WHITE
-            _blank(ws, row, bg=rb, border=BOTTOM_LINE)
-            _c(ws, row, 2, log_date,     bg=rb, ah="center")
-            _c(ws, row, 3, login,        bg=rb, ah="center")
-            _c(ws, row, 4, logout,       bg=rb, ah="center")
-            _c(ws, row, 5, hours_worked, bg=rb, ah="center")
+            bg = BG_ALT if a_idx % 2 else SURFACE
+            _fill_row(ws, row, bg, ROW_BORDER)
+            _cell(ws, row, 2, log_date,     bg=bg, ah="center", fg="374151")
+            _cell(ws, row, 3, login,        bg=bg, ah="center", fg="374151")
+            _cell(ws, row, 4, logout,       bg=bg, ah="center", fg="374151")
+            _cell(ws, row, 5, hours_worked, bg=bg, ah="center", fg="374151", bold=True)
             sc = ws.cell(row=row, column=6, value=s_txt)
-            sc.fill = s_bg; sc.border = BOTTOM_LINE
-            sc.font = Font(bold=True, color=s_fg, size=9, name="Arial")
+            sc.fill = s_bg; sc.border = ROW_BORDER
+            sc.font = Font(name="Calibri", bold=True, color=s_fg, size=9)
             sc.alignment = Alignment(horizontal="center", vertical="center")
-
-            ws.row_dimensions[row].height = 16
-            ws.row_dimensions[row].outline_level = 2
-            ws.row_dimensions[row].hidden = True
-            row += 1; has_att = True
+            ws.row_dimensions[row].height = 18
+            ws.row_dimensions[row].outline_level = 1
+            row += 1
+            has_att = True
 
         if not has_att:
-            _blank(ws, row, bg=ROW_WHITE, border=BOTTOM_LINE)
+            _fill_row(ws, row, SURFACE, ROW_BORDER)
             c = ws.cell(row=row, column=2, value="No attendance records in this date range")
-            c.font = Font(italic=True, color="9eaab8", size=9, name="Arial")
-            c.fill = ROW_WHITE; c.border = BOTTOM_LINE
+            c.font = Font(name="Calibri", italic=True, color="9CA3AF", size=9)
+            c.fill = SURFACE; c.border = ROW_BORDER
             c.alignment = Alignment(vertical="center")
-            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
-            ws.row_dimensions[row].height = 16
-            ws.row_dimensions[row].outline_level = 2
-            ws.row_dimensions[row].hidden = True
+            _merge(ws, row, 2, 7)
+            ws.row_dimensions[row].height = 18
+            ws.row_dimensions[row].outline_level = 1
             row += 1
 
         if days_worked > 0:
-            extra_h = total_mins // 60; rem_m = total_mins % 60
-            total_h = total_hours + extra_h; avg_h = round(total_h / days_worked, 1)
-            _summary(ws, row,
-                     f"{days_worked} days worked   ·   {total_h}h {rem_m:02d}m total"
-                     f"   ·   avg {avg_h}h / day",
-                     outline_level=1)
-            row += 1
+            extra_h  = total_mins // 60; rem_m = total_mins % 60
+            total_hh = total_hours + extra_h
+            avg_h    = round(total_hh / days_worked, 1)
+            row = _summary_bar(ws, row,
+                               f"  {days_worked} days worked   ·   "
+                               f"{total_hh}h {rem_m:02d}m total   ·   "
+                               f"avg {avg_h}h / day")
 
-        # ── DRAWINGS ────────────────────────────────────────────────────────
-        _sec_hdr(ws, row, "Drawing Assignments", STEEL, outline_level=1); row += 1
+        # ── Drawing assignments ───────────────────────────────────────────
+        row = _section_label(ws, row, "Drawing Assignments")
+        row = _col_headers(ws, row, {
+            2: "Project", 3: "Drawing", 4: "Status",
+            5: "Done", 6: "Total", 7: "Progress", 8: "Payment",
+        })
 
-        STATUS_ORDER = {
-            "in_progress": 0, "admin_rejected": 1, "not_started": 2,
-            "submitted": 3, "admin_approved": 4, "client_approved": 5,
-        }
-
-        # Build a dict: project_id → { meta, drawings[] }
         projects_for_user = {}
         for project_id, project in projects_all.items():
             au = project.get("assigned_users", {})
@@ -295,10 +466,10 @@ def generate_employee_performance_report(start_date=None, end_date=None):
                 sub_steps = drawing.get("sub_steps", {})
                 total_s   = len(sub_steps)
                 done_s    = sum(1 for s in sub_steps.values() if s.get("completed", False))
-                progress  = f"{round(done_s / total_s * 100)}%" if total_s else "—"
+                progress  = f"{done_s}/{total_s}  ({round(done_s/total_s*100)}%)" if total_s else "—"
                 paid      = drawing.get("payment_received", False)
                 pay_txt   = ("Paid ✓" if paid else "Unpaid ✗") \
-                            if d_status == "client_approved" else "—"
+                            if d_status in ("client_approved", "admin_approved") else "—"
                 drawings_list.append({
                     "drawing":  drawing.get("name", ""),
                     "status":   d_status,
@@ -306,172 +477,55 @@ def generate_employee_performance_report(start_date=None, end_date=None):
                     "total":    total_s,
                     "progress": progress,
                     "pay_txt":  pay_txt,
-                    "paid":     paid if d_status == "client_approved" else None,
+                    "paid":     paid if d_status in ("client_approved", "admin_approved") else None,
                 })
-            # Sort drawings within each project by status
             drawings_list.sort(key=lambda x: STATUS_ORDER.get(x["status"], 9))
             projects_for_user[project_id] = {
-                "name":    project.get("name", ""),
-                "client":  project.get("client_name", ""),
+                "name":     project.get("name", ""),
+                "client":   project.get("client_name", ""),
                 "drawings": drawings_list,
             }
 
         if not projects_for_user:
-            _blank(ws, row, bg=ROW_WHITE, border=BOTTOM_LINE)
+            _fill_row(ws, row, SURFACE, ROW_BORDER)
             c = ws.cell(row=row, column=2, value="No drawings assigned")
-            c.font = Font(italic=True, color="9eaab8", size=9, name="Arial")
-            c.fill = ROW_WHITE; c.border = BOTTOM_LINE
+            c.font = Font(name="Calibri", italic=True, color="9CA3AF", size=9)
+            c.fill = SURFACE; c.border = ROW_BORDER
             c.alignment = Alignment(vertical="center")
-            ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=7)
-            ws.row_dimensions[row].height = 16
-            ws.row_dimensions[row].outline_level = 2
-            ws.row_dimensions[row].hidden = True
+            _merge(ws, row, 2, 8)
+            ws.row_dimensions[row].height = 18
+            ws.row_dimensions[row].outline_level = 1
             row += 1
         else:
-            # Sort projects alphabetically by name
-            sorted_projects = sorted(projects_for_user.values(), key=lambda p: p["name"].lower())
-            for proj in sorted_projects:
-                # ── Project sub-header ──────────────────────────────────────
-                _blank(ws, row, bg=fill("dce6f0"), border=NO_BORDER)
-                proj_label = f"  📁  {proj['name']}   ·   {proj['client']}"
-                pc = ws.cell(row=row, column=2, value=proj_label)
-                pc.fill = fill("dce6f0")
-                pc.font = Font(bold=True, color="2d3748", size=9, name="Arial")
-                pc.alignment = Alignment(vertical="center", horizontal="left")
-                pc.border = NO_BORDER
-                ws.merge_cells(start_row=row, start_column=2, end_row=row, end_column=NCOLS)
-                ws.row_dimensions[row].height = 18
-                ws.row_dimensions[row].outline_level = 1
-                row += 1
-
-                # ── Column headers for this project's drawings ──────────────
-                _col_hdrs(ws, row, {3: "Drawing", 4: "Status", 5: "Done",
-                                     6: "Total", 7: "Progress", 8: "Payment"},
-                          hidden=True)
-                row += 1
-
-                if not proj["drawings"]:
-                    _blank(ws, row, bg=ROW_WHITE, border=BOTTOM_LINE)
-                    c = ws.cell(row=row, column=3, value="No drawings in this project")
-                    c.font = Font(italic=True, color="9eaab8", size=9, name="Arial")
-                    c.fill = ROW_WHITE; c.border = BOTTOM_LINE
-                    c.alignment = Alignment(vertical="center")
-                    ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=8)
-                    ws.row_dimensions[row].height = 16
-                    ws.row_dimensions[row].outline_level = 2
-                    ws.row_dimensions[row].hidden = True
+            sorted_projs = sorted(projects_for_user.values(),
+                                  key=lambda p: p["name"].lower())
+            d_idx = 0
+            for proj in sorted_projs:
+                for drw in proj["drawings"]:
+                    bg = BG_ALT if d_idx % 2 else SURFACE
+                    _fill_row(ws, row, bg, ROW_BORDER)
+                    _cell(ws, row, 2, f"{proj['name']}  ·  {proj['client']}",
+                          fg="64748B", size=9, bg=bg)
+                    _cell(ws, row, 3, drw["drawing"],
+                          fg="1F2328", size=10, bold=True, bg=bg)
+                    _status_cell(ws, row, 4, drw["status"], bg)
+                    _cell(ws, row, 5, drw["done"],     bg=bg, ah="center", fg="374151")
+                    _cell(ws, row, 6, drw["total"],    bg=bg, ah="center", fg="374151")
+                    _cell(ws, row, 7, drw["progress"], bg=bg, ah="center", fg="374151")
+                    _pay_cell(ws, row, 8,
+                              drw["pay_txt"],
+                              drw["paid"] if drw["paid"] is not None else False,
+                              bg)
+                    ws.row_dimensions[row].height = 20
+                    ws.row_dimensions[row].outline_level = 1
                     row += 1
-                else:
-                    for idx, drw in enumerate(proj["drawings"]):
-                        rb = ROW_ALT if idx % 2 else ROW_WHITE
-                        _blank(ws, row, bg=rb, border=BOTTOM_LINE)
-                        _c(ws, row, 3, drw["drawing"],  bg=rb)
-                        _status_chip(ws, row, 4, drw["status"])
-                        _c(ws, row, 5, drw["done"],     bg=rb, ah="center")
-                        _c(ws, row, 6, drw["total"],    bg=rb, ah="center")
-                        _c(ws, row, 7, drw["progress"], bg=rb, ah="center")
-                        _pay_chip(ws, row, 8, drw["pay_txt"],
-                                  paid=drw["paid"] if drw["paid"] is not None else False)
-                        ws.row_dimensions[row].height = 17
-                        ws.row_dimensions[row].outline_level = 2
-                        ws.row_dimensions[row].hidden = True
-                        row += 1
+                    d_idx += 1
 
-        _spacer(ws, row); row += 1
+        row = _gap(ws, row, 14)
+        row = _divider(ws, row)
+        row = _gap(ws, row, 6)
 
-    # ── SUMMARY SHEET ──────────────────────────────────────────────────────────
-    ws2 = wb.create_sheet(title="Summary")
-    ws2.sheet_view.showGridLines = False
-    SN = 7
-
-    for letter, width in {"A": 3, "B": 26, "C": 15, "D": 15,
-                          "E": 15, "F": 15, "G": 15}.items():
-        ws2.column_dimensions[letter].width = width
-
-    # Title
-    for col in range(1, SN + 1):
-        c = ws2.cell(row=1, column=col); c.fill = CHARCOAL; c.border = NO_BORDER
-    tc = ws2.cell(row=1, column=1, value="  Employee Performance Summary")
-    tc.fill = CHARCOAL; tc.border = NO_BORDER
-    tc.font = Font(bold=True, color="FFFFFF", size=12, name="Arial")
-    tc.alignment = Alignment(vertical="center", horizontal="left")
-    ws2.merge_cells(start_row=1, start_column=1, end_row=1, end_column=SN)
-    ws2.row_dimensions[1].height = 28
-
-    # Column headers
-    for col in range(1, SN + 1):
-        c = ws2.cell(row=2, column=col); c.fill = fill("edf0f2"); c.border = BOTTOM_LINE
-    for col, hdr in {2: "Employee", 3: "Days Worked", 4: "Total Hours",
-                     5: "Total Drawings", 6: "In Progress", 7: "Submitted"}.items():
-        c = ws2.cell(row=2, column=col, value=hdr)
-        c.fill = fill("edf0f2")
-        c.font = Font(bold=True, color="4a5568", size=10, name="Arial")
-        c.alignment = Alignment(horizontal="center", vertical="center")
-        c.border = BOTTOM_LINE
-    ws2.row_dimensions[2].height = 20
-
-    srow = 3
-    for idx, (user_id, user) in enumerate(sorted_users):
-        username  = user.get("username", "")
-        user_logs = logs.get(user_id, {}) or {}
-        if not isinstance(user_logs, dict):
-            user_logs = {}
-
-        th = tm = days = 0
-        for log_date, entry in user_logs.items():
-            if start_date and log_date < start_date: continue
-            if end_date   and log_date > end_date:   continue
-            hw = entry.get("total_hours", "N/A")
-            if hw != "N/A":
-                try:
-                    h, m = hw.split(":")
-                    th += int(h); tm += int(m); days += 1
-                except Exception: pass
-        extra = tm // 60; rem = tm % 60; total_h = th + extra
-        hours_str = f"{total_h}h {rem:02d}m" if days else "—"
-
-        counts = {"in_progress": 0, "submitted": 0, "total": 0}
-        for project_id, project in projects_all.items():
-            if user_id not in project.get("assigned_users", {}):
-                continue
-            for drawing in drawings_all.get(project_id, {}).values():
-                s = drawing.get("status", "")
-                counts["total"] += 1
-                if s in counts:
-                    counts[s] += 1
-
-        rb = ROW_ALT if idx % 2 else ROW_WHITE
-        for col in range(1, SN + 1):
-            c = ws2.cell(row=srow, column=col); c.fill = rb; c.border = BOTTOM_LINE
-
-        nc = ws2.cell(row=srow, column=2, value=username)
-        nc.fill = rb; nc.border = BOTTOM_LINE
-        nc.font = Font(bold=True, color="2d3748", size=10, name="Arial")
-        nc.alignment = Alignment(vertical="center")
-
-        def _s(col, val, chip=None, fg="6b7a8d", bold=False):
-            c = ws2.cell(row=srow, column=col, value=val)
-            c.fill = chip if chip else rb
-            c.font = Font(color=fg, size=10, name="Arial", bold=bold)
-            c.alignment = Alignment(horizontal="center", vertical="center")
-            c.border = BOTTOM_LINE
-
-        _s(3, days if days else "—")
-        _s(4, hours_str)
-        _s(5, counts["total"] or "—")
-        _s(6, counts["in_progress"] or "—",
-           chip=fill("fef9ec") if counts["in_progress"] else None,
-           fg="8a6800" if counts["in_progress"] else "9eaab8",
-           bold=bool(counts["in_progress"]))
-        _s(7, counts["submitted"] or "—",
-           chip=fill("ede9fe") if counts["submitted"] else None,
-           fg="5b21b6" if counts["submitted"] else "9eaab8",
-           bold=bool(counts["submitted"]))
-
-        ws2.row_dimensions[srow].height = 19
-        srow += 1
-
-    # ── Save ───────────────────────────────────────────────────────────────────
+    # ── Save ─────────────────────────────────────────────────────────────────
     date_range = ""
     if start_date and end_date:
         date_range = f"_{start_date}_to_{end_date}"
@@ -485,4 +539,11 @@ def generate_employee_performance_report(start_date=None, end_date=None):
     full_path = os.path.join(get_reports_directory(), filename)
     wb.save(full_path)
     logger.info(f"Generated employee performance report: {full_path}")
+
+    # Auto-open in Excel / default spreadsheet app
+    try:
+        os.startfile(full_path)
+    except Exception:
+        pass
+
     return full_path
