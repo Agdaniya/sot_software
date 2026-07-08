@@ -63,13 +63,21 @@ if not exist "ui\logo.PNG" (
     exit /b 1
 )
 if not exist "ui\logo.ico" (
-    echo WARNING: ui\logo.ico not found - generating from logo.PNG...
+    echo WARNING: ui\logo.ico not found - regenerating...
     python make_ico.py
     if errorlevel 1 (
         echo FAIL: Could not create logo.ico - install Pillow: pip install pillow
         pause
         exit /b 1
     )
+)
+if not exist "ui\logo_small.bmp" (
+    echo WARNING: ui\logo_small.bmp not found - regenerating...
+    python make_ico.py
+)
+if not exist "ui\logo_banner.bmp" (
+    echo WARNING: ui\logo_banner.bmp not found - regenerating...
+    python make_ico.py
 )
 echo OK: Asset files present
 echo.

@@ -1,12 +1,13 @@
 """
-Generates a valid multi-size .ico from logo.PNG.
+Generates logo.ico, logo_small.bmp and logo_banner.bmp from ui/logo.PNG.
 Run from the sot_software/ directory:  python make_ico.py
 """
-import struct, io, os, sys
+import struct, io, os
 from PIL import Image
 
-src = os.path.join(os.path.dirname(__file__), "ui", "logo.PNG")
-dst = os.path.join(os.path.dirname(__file__), "ui", "logo.ico")
+_ui  = os.path.join(os.path.dirname(__file__), "ui")
+src  = os.path.join(_ui, "logo.PNG")
+dst  = os.path.join(_ui, "logo.ico")
 
 img = Image.open(src).convert("RGBA")
 sizes = [16, 24, 32, 48, 64, 128, 256]
@@ -46,3 +47,18 @@ with open(dst, "wb") as f:
         f.write(data)
 
 print(f"Created {dst}  ({os.path.getsize(dst):,} bytes, {n} sizes: {sizes})")
+
+# ── logo_small.bmp — 55×58, required by Inno Setup WizardSmallImageFile ──────
+img_rgb = img.convert("RGB")
+small = img_rgb.resize((55, 58), Image.LANCZOS)
+small_path = os.path.join(_ui, "logo_small.bmp")
+small.save(small_path, format="BMP")
+print(f"Created {small_path}  ({os.path.getsize(small_path):,} bytes, 55×58)")
+
+# ── logo_banner.bmp — 164×314, Inno Setup WizardImageFile (left sidebar) ─────
+banner = Image.new("RGB", (164, 314), (30, 42, 58))   # dark navy #1e2a3a
+logo_sized = img_rgb.resize((110, 110), Image.LANCZOS)
+banner.paste(logo_sized, ((164 - 110) // 2, 80))
+banner_path = os.path.join(_ui, "logo_banner.bmp")
+banner.save(banner_path, format="BMP")
+print(f"Created {banner_path}  ({os.path.getsize(banner_path):,} bytes, 164×314)")
