@@ -31,7 +31,7 @@ python -m PyInstaller ^
     --onefile ^
     --windowed ^
     --name SOT ^
-    --icon=NONE ^
+    --icon="ui/logo.ico" ^
     --add-data "firebase_key.json;." ^
     --add-data "ui/workspace.jpeg;ui" ^
     --add-data "ui/logo.PNG;ui" ^

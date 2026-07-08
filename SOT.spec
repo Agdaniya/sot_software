@@ -6,6 +6,7 @@ datas = [
     ('firebase_key.json', '.'),
     ('ui/workspace.jpeg', 'ui'),
     ('ui/logo.PNG',       'ui'),
+    ('ui/logo.ico',       'ui'),
     ('assets/fonts/Inter-Regular.ttf',  'assets/fonts'),
     ('assets/fonts/Inter-Medium.ttf',   'assets/fonts'),
     ('assets/fonts/Inter-SemiBold.ttf', 'assets/fonts'),
@@ -56,5 +57,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon='NONE',
+    icon='ui/logo.ico',
 )

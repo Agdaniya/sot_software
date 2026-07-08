@@ -23,6 +23,8 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
+SetupIconFile=ui\logo.ico
+WizardSmallImageFile=ui\logo.ico
 
 ; Where to install
 DefaultDirName={autopf}\{#MyAppShortName}
@@ -66,6 +68,8 @@ Name: "desktopicon"; Description: "Create a &Desktop shortcut"; GroupDescription
 [Files]
 ; Main application executable (built by PyInstaller)
 Source: "dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; App icon (so uninstaller entry in Control Panel shows the logo)
+Source: "ui\logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 ; VC++ Runtime - will be extracted and run silently if needed
 ; IMPORTANT: Download vc_redist.x64.exe from Microsoft and place it
@@ -77,7 +81,7 @@ Source: "vc_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 Name: "{group}\{#MyAppShortName}"; Filename: "{app}\{#MyAppExeName}"
 
 ; Desktop shortcut (only if user selected the task above)
-Name: "{userdesktop}\{#MyAppShortName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
+Name: "{userdesktop}\{#MyAppShortName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\logo.ico"; Tasks: desktopicon
 
 ; Uninstall shortcut in Start Menu
 Name: "{group}\Uninstall {#MyAppShortName}"; Filename: "{uninstallexe}"
