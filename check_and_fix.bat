@@ -64,7 +64,7 @@ if not exist "ui\logo.PNG" (
 )
 if not exist "ui\logo.ico" (
     echo WARNING: ui\logo.ico not found - generating from logo.PNG...
-    python -c "from PIL import Image; img=Image.open('ui/logo.PNG').convert('RGBA'); img.save('ui/logo.ico',format='ICO',sizes=[(16,16),(32,32),(48,48),(64,64),(128,128),(256,256)]); print('Created ui\\logo.ico')"
+    python make_ico.py
     if errorlevel 1 (
         echo FAIL: Could not create logo.ico - install Pillow: pip install pillow
         pause
