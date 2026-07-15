@@ -77,6 +77,7 @@ python -m PyInstaller ^
     --hidden-import ui.admin_review ^
     --hidden-import ui.admin_template ^
     --hidden-import ui.drawing_detail ^
+    --hidden-import ui.admin_tasks ^
     --hidden-import ui.superadmin_users ^
     --hidden-import utils ^
     --hidden-import utils.logger ^

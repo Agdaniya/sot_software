@@ -11,6 +11,7 @@ from ui.admin_projects import AdminProjects
 from ui.admin_review import AdminReview
 from ui.admin_template import AdminTemplate
 from ui.superadmin_users import SuperAdminUsers
+from ui.admin_tasks import AdminTasks
 
 
 class MainWindow(QMainWindow):
@@ -37,6 +38,7 @@ class MainWindow(QMainWindow):
         self.review_page    = None
         self.template_page  = None
         self.users_page     = None
+        self.tasks_page     = None
 
         root = QWidget()
         layout = QVBoxLayout(root)
@@ -99,6 +101,14 @@ class MainWindow(QMainWindow):
             self.users_page.load_users()
         self.stack.setCurrentWidget(self.users_page)
 
+    def show_tasks(self):
+        if self.tasks_page is None:
+            self.tasks_page = AdminTasks(current_user=self.user)
+            self.stack.addWidget(self.tasks_page)
+        else:
+            self.tasks_page._load_data()
+        self.stack.setCurrentWidget(self.tasks_page)
+
     def show_drawing_detail(self, project_id, drawing_id):
         from ui.drawing_detail import DrawingDetail
         detail_widget = DrawingDetail(project_id, drawing_id, current_user=self.user)
@@ -111,6 +121,18 @@ class MainWindow(QMainWindow):
         elif self.user:
             self.show_employee_dashboard()
 
+    def closeEvent(self, event):
+        """Record logout when the window is closed via the X button."""
+        if self.user:
+            try:
+                from services.firebase_client import FirebaseClient
+                FirebaseClient().record_logout_time(self.user["user_id"])
+            except Exception:
+                pass
+            if self.employee_dashboard and hasattr(self.employee_dashboard, "refresh_timer"):
+                self.employee_dashboard.refresh_timer.stop()
+        event.accept()
+
     def handle_logout(self):
         self.user = None
         self.admin_dashboard    = None
@@ -119,6 +141,7 @@ class MainWindow(QMainWindow):
         self.review_page    = None
         self.template_page  = None
         self.users_page     = None
+        self.tasks_page     = None
         self.stack.setCurrentWidget(self.login_view)
         self.login_view.email_input.clear()
         self.login_view.password_input.clear()

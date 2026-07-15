@@ -1,7 +1,7 @@
 from PySide6.QtWidgets import (
     QWidget, QLabel, QVBoxLayout, QHBoxLayout,
     QListWidget, QListWidgetItem, QPushButton,
-    QFrame, QLineEdit, QSizePolicy
+    QFrame, QLineEdit, QSizePolicy, QComboBox
 )
 from PySide6.QtCore import Qt, QTimer, QSize
 from services.firebase_client import FirebaseClient
@@ -107,6 +107,99 @@ class ProjectRowWidget(QWidget):
         self.setStyleSheet("QWidget { background: transparent; border: none; }")
 
 
+# ── Task status meta (mirrors admin_tasks.py) ────────────────────────────────
+_TASK_STATUS = {
+    "pending":     ("Pending",     "#fef9c3", "#92400e"),
+    "in_progress": ("In Progress", "#ede9fe", "#5b21b6"),
+    "done":        ("Done",        "#ccfbf1", "#0f766e"),
+    "closed":      ("Closed",      "#f3f4f6", "#6b7280"),
+}
+
+
+class TaskRowWidget(QWidget):
+    """Compact task row shown on the employee dashboard."""
+    def __init__(self, title, description, due_date, status, on_status_change, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+
+        is_closed = (status == "closed")
+
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(16, 11, 16, 11)
+        outer.setSpacing(5)
+
+        # Row 1: title + pill
+        r1 = QHBoxLayout()
+        r1.setSpacing(8)
+        title_lbl = QLabel(title)
+        if is_closed:
+            title_lbl.setStyleSheet(
+                f"font-size: 13px; font-weight: 600; color: {T.TEXT_HINT}; "
+                f"text-decoration: line-through;"
+            )
+        else:
+            title_lbl.setStyleSheet(f"font-size: 13px; font-weight: 600; color: {T.TEXT};")
+        r1.addWidget(title_lbl, 1)
+
+        label, pill_bg, pill_fg = _TASK_STATUS.get(status, ("Unknown", "#f3f4f6", "#6b7280"))
+        pill = QLabel(f"● {label}")
+        pill.setStyleSheet(
+            f"font-size: 10px; font-weight: 700; padding: 2px 10px; "
+            f"border-radius: 10px; background: {pill_bg}; color: {pill_fg};"
+        )
+        r1.addWidget(pill)
+        outer.addLayout(r1)
+
+        if description:
+            d_lbl = QLabel(description)
+            d_lbl.setWordWrap(True)
+            if is_closed:
+                d_lbl.setStyleSheet(
+                    f"font-size: 12px; color: {T.TEXT_HINT}; "
+                    f"text-decoration: line-through;"
+                )
+            else:
+                d_lbl.setStyleSheet(f"font-size: 12px; color: {T.TEXT_SEC};")
+            outer.addWidget(d_lbl)
+
+        # Row 2: due date + status changer (locked when closed)
+        r2 = QHBoxLayout()
+        r2.setSpacing(10)
+        if due_date:
+            due_lbl = QLabel(f"Due: {due_date}")
+            due_lbl.setStyleSheet(f"font-size: 11px; color: {T.TEXT_HINT};")
+            r2.addWidget(due_lbl)
+        r2.addStretch()
+
+        if not is_closed:
+            combo = QComboBox()
+            for key, (lbl, *_) in _TASK_STATUS.items():
+                if key == "closed":
+                    continue   # employee cannot set closed themselves
+                combo.addItem(lbl, key)
+            idx = combo.findData(status)
+            if idx >= 0:
+                combo.setCurrentIndex(idx)
+            combo.setFixedHeight(24)
+            combo.setStyleSheet(
+                f"QComboBox {{ background: {T.BG}; border: 1px solid {T.BORDER_SOLID}; "
+                f"border-radius: 4px; font-size: 11px; font-weight: 600; "
+                f"color: {T.TEXT_SEC}; padding: 0 6px; }}"
+                f"QComboBox::drop-down {{ border: none; width: 16px; }}"
+                f"QComboBox::down-arrow {{ border-left: 4px solid transparent; "
+                f"border-right: 4px solid transparent; "
+                f"border-top: 4px solid {T.TEXT_SEC}; margin-right: 4px; }}"
+                f"QComboBox QAbstractItemView {{ background: {T.SURFACE}; "
+                f"border: 1px solid {T.BORDER_SOLID}; font-size: 12px; }}"
+            )
+            combo.currentIndexChanged.connect(lambda _: on_status_change(combo.currentData()))
+            r2.addWidget(combo)
+
+        outer.addLayout(r2)
+
+        self.setStyleSheet("QWidget { background: transparent; border: none; }")
+
+
 # ── Employee Dashboard ────────────────────────────────────────────────────────
 class EmployeeDashboard(QWidget):
     def __init__(self, user, on_logout):
@@ -201,7 +294,7 @@ class EmployeeDashboard(QWidget):
         self.project_list.itemClicked.connect(self.load_drawings)
         left_layout.addWidget(self.project_list)
 
-        # ── RIGHT: Drawings ───────────────────────────────────────────────────
+        # ── RIGHT: Drawings + Tasks ───────────────────────────────────────────
         right_panel = QFrame()
         right_panel.setStyleSheet(
             f"QFrame {{ background: {T.BG}; border: none; }}"
@@ -257,6 +350,54 @@ class EmployeeDashboard(QWidget):
         self.drawing_list.hide()
         right_layout.addWidget(self.drawing_list, 1)
 
+        # ── Tasks section (below drawings, always visible) ────────────────────
+        tasks_sep = QFrame()
+        tasks_sep.setFixedHeight(1)
+        tasks_sep.setStyleSheet(f"background: {T.BORDER_SOLID}; border: none;")
+        right_layout.addWidget(tasks_sep)
+
+        tasks_hdr = QFrame()
+        tasks_hdr.setFixedHeight(52)
+        tasks_hdr.setStyleSheet(
+            f"QFrame {{ background: {T.SURFACE}; border: none; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+        )
+        th = QHBoxLayout(tasks_hdr)
+        th.setContentsMargins(20, 0, 20, 0)
+        th.setSpacing(8)
+        tasks_title = QLabel("My Tasks")
+        tasks_title.setStyleSheet(f"font-size: 14px; font-weight: 700; color: {T.TEXT};")
+        self._task_count_lbl = QLabel("")
+        self._task_count_lbl.setStyleSheet(
+            f"background: {T.BG}; color: {T.TEXT_SEC}; border-radius: 10px; "
+            f"padding: 2px 8px; font-size: 11px; font-weight: 600;"
+        )
+        self._task_count_lbl.hide()
+        th.addWidget(tasks_title)
+        th.addWidget(self._task_count_lbl)
+        th.addStretch()
+        right_layout.addWidget(tasks_hdr)
+
+        self._tasks_list = QListWidget()
+        self._tasks_list.setStyleSheet(
+            f"QListWidget {{ border: none; background: {T.SURFACE}; outline: none; }}"
+            f"QListWidget::item {{ border: none; margin: 0; padding: 0; "
+            f"border-bottom: 1px solid {T.BORDER_SOLID}; }}"
+            f"QListWidget::item:hover {{ background: {T.BG}; }}"
+            f"QListWidget::item:selected {{ background: {T.BG}; }}"
+        )
+        self._tasks_list.setSelectionMode(QListWidget.NoSelection)
+        self._tasks_list.setMaximumHeight(260)
+        self._tasks_list.setSpacing(0)
+
+        self._no_tasks_lbl = QLabel("No tasks assigned.")
+        self._no_tasks_lbl.setAlignment(Qt.AlignCenter)
+        self._no_tasks_lbl.setStyleSheet(
+            f"color: {T.TEXT_HINT}; font-size: 12px; padding: 16px;"
+        )
+        right_layout.addWidget(self._no_tasks_lbl)
+        right_layout.addWidget(self._tasks_list)
+
         body_layout.addWidget(left_panel)
         body_layout.addWidget(right_panel, 1)
         main_layout.addWidget(body, 1)
@@ -267,6 +408,7 @@ class EmployeeDashboard(QWidget):
         self.refresh_timer.start(3000)
 
         self.load_projects()
+        self.load_tasks()
 
     # ── Helpers ───────────────────────────────────────────────────────────────
     def _handle_logout(self):
@@ -290,6 +432,7 @@ class EmployeeDashboard(QWidget):
                         if self.drawing_list.item(i).data(Qt.UserRole) == cur_id:
                             self.drawing_list.setCurrentRow(i)
                             break
+            self.load_tasks()
         except Exception as e:
             logger.error(f"Auto-refresh error: {str(e)}")
 
@@ -385,3 +528,55 @@ class EmployeeDashboard(QWidget):
         mw = self.window()
         if hasattr(mw, "show_drawing_detail"):
             mw.show_drawing_detail(project_id, drawing_id)
+
+    def load_tasks(self):
+        """Load tasks assigned to this employee and render them in the My Tasks section."""
+        try:
+            tasks = self.fb.get_tasks_for_user(self.user["user_id"])
+        except Exception as e:
+            logger.error(f"Error loading tasks: {str(e)}")
+            return
+
+        self._tasks_list.clear()
+
+        # sort: pending/in_progress first, then done
+        def _sort_key(item):
+            order = {"pending": 0, "in_progress": 1, "done": 2}
+            return (order.get(item[1].get("status", "pending"), 9),
+                    item[1].get("created_at", ""))
+
+        sorted_tasks = sorted(tasks.items(), key=_sort_key)
+        count = len(sorted_tasks)
+        self._task_count_lbl.setText(str(count))
+        self._task_count_lbl.setVisible(count > 0)
+
+        if not sorted_tasks:
+            self._no_tasks_lbl.show()
+            self._tasks_list.hide()
+            return
+
+        self._no_tasks_lbl.hide()
+        self._tasks_list.show()
+
+        for tid, task in sorted_tasks:
+            list_item = QListWidgetItem()
+            list_item.setData(Qt.UserRole, tid)
+            list_item.setFlags(Qt.ItemIsEnabled)
+            w = TaskRowWidget(
+                title           = task.get("title", "Untitled"),
+                description     = task.get("description", ""),
+                due_date        = task.get("due_date", ""),
+                status          = task.get("status", "pending"),
+                on_status_change= lambda new_status, t=tid: self._update_task_status(t, new_status),
+            )
+            hint = w.sizeHint()
+            list_item.setSizeHint(QSize(hint.width(), max(hint.height(), 72)))
+            self._tasks_list.addItem(list_item)
+            self._tasks_list.setItemWidget(list_item, w)
+
+    def _update_task_status(self, task_id, new_status):
+        try:
+            self.fb.update_task_status(task_id, new_status)
+            self.load_tasks()
+        except Exception as e:
+            logger.error(f"Error updating task status: {str(e)}")

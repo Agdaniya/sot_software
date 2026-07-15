@@ -230,6 +230,7 @@ def generate_employee_performance_report(start_date=None, end_date=None):
     logs         = fb.root.child("activity_logs").get() or {}
     projects_all = fb.root.child("projects").get()      or {}
     drawings_all = fb.root.child("drawings").get()      or {}
+    tasks_all    = fb.root.child("tasks").get()         or {}
 
     wb = Workbook()
 
@@ -264,7 +265,7 @@ def generate_employee_performance_report(start_date=None, end_date=None):
     srow = _col_headers(ws_sum, srow, {
         2: "Employee", 3: "Role",
         4: "Days Worked", 5: "Total Hours", 6: "Avg Hours/Day",
-        7: "Total Drawings", 8: "In Progress", 9: "Submitted",
+        7: "Total Drawings", 8: "In Progress", 9: "Tasks (Open)",
     })
 
     sorted_users = sorted(
@@ -325,9 +326,7 @@ def generate_employee_performance_report(start_date=None, end_date=None):
               fg="374151", size=10, bg=bg, ah="center")
 
         c_ip = counts["in_progress"]
-        c_sb = counts["submitted"]
         ip_bg = F("FEF9C3") if c_ip else bg
-        sb_bg = F("EDE9FE") if c_sb else bg
         c = ws_sum.cell(row=srow, column=8, value=c_ip or "—")
         c.fill = ip_bg
         c.font = Font(name="Calibri", bold=bool(c_ip),
@@ -335,10 +334,17 @@ def generate_employee_performance_report(start_date=None, end_date=None):
         c.alignment = Alignment(horizontal="center", vertical="center")
         c.border = ROW_BORDER
 
-        c = ws_sum.cell(row=srow, column=9, value=c_sb or "—")
-        c.fill = sb_bg
-        c.font = Font(name="Calibri", bold=bool(c_sb),
-                      color="5B21B6" if c_sb else "9CA3AF", size=10)
+        # open tasks count (pending + in_progress, not done/closed)
+        open_tasks = sum(
+            1 for t in tasks_all.values()
+            if t.get("assigned_to") == user_id
+            and t.get("status") not in ("done", "closed")
+        )
+        tk_bg = F("FEF9C3") if open_tasks else bg
+        c = ws_sum.cell(row=srow, column=9, value=open_tasks or "—")
+        c.fill = tk_bg
+        c.font = Font(name="Calibri", bold=bool(open_tasks),
+                      color="92400E" if open_tasks else "9CA3AF", size=10)
         c.alignment = Alignment(horizontal="center", vertical="center")
         c.border = ROW_BORDER
 
@@ -520,6 +526,78 @@ def generate_employee_performance_report(start_date=None, end_date=None):
                     ws.row_dimensions[row].outline_level = 1
                     row += 1
                     d_idx += 1
+
+        # ── Tasks ─────────────────────────────────────────────────────────
+        row = _section_label(ws, row, "Assigned Tasks")
+        row = _col_headers(ws, row, {
+            2: "Title", 3: "Description", 4: "Due Date",
+            5: "Status", 6: "Assigned By",
+        })
+
+        user_tasks = {
+            tid: t for tid, t in tasks_all.items()
+            if t.get("assigned_to") == user_id
+        }
+
+        if not user_tasks:
+            _fill_row(ws, row, SURFACE, ROW_BORDER)
+            c = ws.cell(row=row, column=2, value="No tasks assigned")
+            c.font = Font(name="Calibri", italic=True, color="9CA3AF", size=9)
+            c.fill = SURFACE; c.border = ROW_BORDER
+            c.alignment = Alignment(vertical="center")
+            _merge(ws, row, 2, 6)
+            ws.row_dimensions[row].height = 18
+            ws.row_dimensions[row].outline_level = 1
+            row += 1
+        else:
+            _task_status_order = {"pending": 0, "in_progress": 1, "done": 2, "closed": 3}
+            _task_status_labels = {
+                "pending": "Pending", "in_progress": "In Progress",
+                "done": "Done", "closed": "Closed",
+            }
+            _task_status_colors = {
+                "pending":     ("FEF9C3", "92400E"),
+                "in_progress": ("EDE9FE", "5B21B6"),
+                "done":        ("CCFBF1", "0F766E"),
+                "closed":      ("F3F4F6", "6B7280"),
+            }
+            sorted_tasks = sorted(
+                user_tasks.items(),
+                key=lambda x: _task_status_order.get(x[1].get("status", "pending"), 9)
+            )
+            for t_idx, (tid, task) in enumerate(sorted_tasks):
+                t_status = task.get("status", "pending")
+                t_bg_hex, t_fg_hex = _task_status_colors.get(t_status, ("F3F4F6", "6B7280"))
+                t_bg = F(t_bg_hex)
+                bg = BG_ALT if t_idx % 2 else SURFACE
+
+                creator = users.get(task.get("created_by", ""), {})
+                creator_name = creator.get("username", "—") if creator else "—"
+
+                _fill_row(ws, row, bg, ROW_BORDER)
+                title_cell = ws.cell(row=row, column=2, value=task.get("title", ""))
+                title_cell.font = Font(
+                    name="Calibri", size=10, bold=True, color="1F2328",
+                    strike=(t_status == "closed")
+                )
+                title_cell.fill = bg; title_cell.border = ROW_BORDER
+                title_cell.alignment = Alignment(vertical="center")
+
+                _cell(ws, row, 3, task.get("description", "")[:80],
+                      fg="64748B", size=9, bg=bg)
+                _cell(ws, row, 4, task.get("due_date", "—") or "—",
+                      fg="374151", size=9, bg=bg, ah="center")
+
+                sc = ws.cell(row=row, column=5,
+                             value=_task_status_labels.get(t_status, t_status))
+                sc.fill = t_bg; sc.border = ROW_BORDER
+                sc.font = Font(name="Calibri", bold=True, color=t_fg_hex, size=9)
+                sc.alignment = Alignment(horizontal="center", vertical="center")
+
+                _cell(ws, row, 6, creator_name, fg="374151", size=9, bg=bg)
+                ws.row_dimensions[row].height = 18
+                ws.row_dimensions[row].outline_level = 1
+                row += 1
 
         row = _gap(ws, row, 14)
         row = _divider(ws, row)

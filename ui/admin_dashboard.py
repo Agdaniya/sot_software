@@ -356,6 +356,7 @@ class AdminDashboard(QWidget):
         cards = [
             ("PR", "Projects",        "Create and manage projects, assign team members.",              "#4f46e5",  self.open_projects),
             ("RD", "Review Drawings", "Review submitted drawings — approve or reject with feedback.",  "#7c3aed",  self.open_review),
+            ("TK", "Tasks",           "Assign ad-hoc tasks to employees and track progress.",          "#0891b2",  self.open_tasks),
             ("ER", "Employee Report", "Export a date-range Excel report of employee activity.",        "#d97706",  self.download_employee_report),
             ("PR", "Project Report",  "Download an Excel summary of all projects and drawing statuses.", "#0f766e", self.download_project_report),
         ]
@@ -391,6 +392,10 @@ class AdminDashboard(QWidget):
     def open_review(self):
         mw = self.window()
         if hasattr(mw, "show_review"): mw.show_review()
+
+    def open_tasks(self):
+        mw = self.window()
+        if hasattr(mw, "show_tasks"): mw.show_tasks()
 
     def open_template(self):
         mw = self.window()

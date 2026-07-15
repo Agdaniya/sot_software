@@ -170,51 +170,48 @@ class FirebaseClient:
     # -----------------------
     def record_login_time(self, user_id):
         """
-        Record FIRST login time of the day
+        Record the FIRST login time of the day.
         """
         today = date.today().isoformat()
-        now = datetime.now().strftime("%H:%M:%S")
+        now   = datetime.now().strftime("%H:%M:%S")
 
         user_day_ref = self.root.child("activity_logs").child(user_id).child(today)
-        day_data = user_day_ref.get() or {}
+        day_data     = user_day_ref.get() or {}
 
+        # Only record login_time once (the first login of the day)
         if not day_data.get("login_time"):
-            user_day_ref.update({
-                "login_time": now
-            })
+            user_day_ref.update({"login_time": now})
 
     def record_logout_time(self, user_id):
         """
-        Record LAST logout time of the day
-        and calculate total hours (handles midnight crossover)
+        Record the LAST logout time of the day.
+        Total hours = last logout minus first login (gaps included).
         """
         today = date.today().isoformat()
-        now = datetime.now()
+        now   = datetime.now()
 
         user_day_ref = self.root.child("activity_logs").child(user_id).child(today)
-        day_data = user_day_ref.get() or {}
+        day_data     = user_day_ref.get() or {}
 
         login_time = day_data.get("login_time")
         if not login_time:
             return
 
         login_dt = datetime.strptime(login_time, "%H:%M:%S").replace(
-            year=now.year,
-            month=now.month,
-            day=now.day
+            year=now.year, month=now.month, day=now.day
         )
 
-        # Handle midnight crossover safely
+        # Handle midnight crossover
         if now < login_dt:
             now = now + timedelta(days=1)
 
-        delta = now - login_dt
-        hours, remainder = divmod(delta.seconds, 3600)
-        minutes = remainder // 60
+        delta  = now - login_dt
+        hours, remainder = divmod(int(delta.total_seconds()), 3600)
+        mins   = remainder // 60
 
         user_day_ref.update({
             "logout_time": now.strftime("%H:%M:%S"),
-            "total_hours": f"{hours}:{minutes:02d}"
+            "total_hours": f"{hours}:{mins:02d}",
         })
     
     def delete_user_activity_logs(self, user_id):
@@ -238,6 +235,29 @@ class FirebaseClient:
 
     def delete_template_substep(self, drawing_id, step_id):
         self.root.child("project_template").child(drawing_id).child("sub_steps").child(step_id).delete()
+
+    # -----------------------
+    # TASKS
+    # -----------------------
+    def assign_task(self, task_id, data):
+        """Save a task. data must include assigned_to, title, description, due_date, created_by, status."""
+        self.root.child("tasks").child(task_id).set(data)
+
+    def get_task(self, task_id):
+        return self.root.child("tasks").child(task_id).get()
+
+    def get_all_tasks(self):
+        return self.root.child("tasks").get() or {}
+
+    def get_tasks_for_user(self, user_id):
+        all_tasks = self.get_all_tasks()
+        return {tid: t for tid, t in all_tasks.items() if t.get("assigned_to") == user_id}
+
+    def update_task_status(self, task_id, status):
+        self.root.child("tasks").child(task_id).update({"status": status})
+
+    def delete_task(self, task_id):
+        self.root.child("tasks").child(task_id).delete()
 
     def update_project_assignments(self, project_id, user_ids):
         self.root.child("projects").child(project_id).child("assigned_users").set(user_ids)
